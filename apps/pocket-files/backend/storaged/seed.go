@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"fmt"
@@ -98,7 +98,7 @@ var minimalPNG = []byte{
 	0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 }
 
-func seedMockVolume(root, id string, index int) error {
+func SeedMockVolume(root, id string, index int) error {
 	if os.Getenv("POCKET_FILES_MOCK_BIG") == "1" {
 		// Optional large sample so transfer progress can be observed end to end.
 		// Off by default to keep test and startup time short.

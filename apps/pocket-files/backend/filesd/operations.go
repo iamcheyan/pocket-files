@@ -456,7 +456,7 @@ func (s *Server) handleFilePreview(w http.ResponseWriter, r *http.Request, id st
 		s.error(w, 400, "unsupported_type", "preview not supported for this file type")
 		return
 	}
-	full, err := s.p.resolve(sid, rel, false)
+	full, err := s.p.Resolve(sid, rel, false)
 	if err != nil {
 		s.error(w, 400, "resolve_error", "unable to read file")
 		return

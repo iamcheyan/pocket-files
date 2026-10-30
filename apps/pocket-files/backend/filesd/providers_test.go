@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/iamcheyan/pocket-files/apps/pocket-files/backend/storaged"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,13 +14,13 @@ import (
 	"time"
 )
 
-func newTestRouter(t *testing.T) (*providerRouter, string, *MockProvider) {
+func newTestRouter(t *testing.T) (*storaged.Router, string, *storaged.MockProvider) {
 	t.Helper()
 	mock, err := newMockProvider()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(filepath.Dir(mock.roots["internal"])) })
+	t.Cleanup(func() { os.RemoveAll(filepath.Dir(mock.MockRoot("internal"))) })
 	root := t.TempDir()
 	cfg := ProviderConfig{Storages: []StorageEntry{
 		{ID: "local-internal", FriendlyName: "Onboard", Kind: "internal", Root: root},
@@ -42,7 +43,7 @@ func TestProviderContractAcrossFamilies(t *testing.T) {
 		if err := router.CreateDir(ctx, id, "ContractTest"); err != nil {
 			t.Fatalf("%s mkdir: %v", id, err)
 		}
-		rootPath, err := router.resolve(id, "ContractTest", false)
+		rootPath, err := router.Resolve(id, "ContractTest", false)
 		if err != nil {
 			t.Fatalf("%s resolve: %v", id, err)
 		}
@@ -72,10 +73,10 @@ func TestProviderContractAcrossFamilies(t *testing.T) {
 	if _, _, err := router.AvailableSpace(ctx, "webdav"); !errors.Is(err, ErrNotImplemented) {
 		t.Fatalf("webdav space should be not implemented, got %v", err)
 	}
-	if _, err := router.resolve("cloud", "x", false); !errors.Is(err, ErrNotImplemented) {
+	if _, err := router.Resolve("cloud", "x", false); !errors.Is(err, ErrNotImplemented) {
 		t.Fatalf("cloud resolve should be not implemented, got %v", err)
 	}
-	if _, err := router.resolve("local-internal", "../escape", false); err == nil {
+	if _, err := router.Resolve("local-internal", "../escape", false); err == nil {
 		t.Fatalf("local provider accepted traversal")
 	}
 	_ = root
@@ -96,7 +97,7 @@ func TestProviderStubsAreAdvertised(t *testing.T) {
 			t.Errorf("%s must not appear in device discovery", id)
 		}
 	}
-	capabilities, err := router.providerFor("smb")
+	capabilities, err := router.ProviderFor("smb")
 	if err != nil {
 		t.Fatalf("smb capability missing: %v", err)
 	}
@@ -115,7 +116,7 @@ func TestLocalProviderUsesConfiguredRootNotCallerPath(t *testing.T) {
 	if entry.StorageID != "local-internal" {
 		t.Fatalf("storage id = %q", entry.StorageID)
 	}
-	if _, err = router.resolve("local-internal", filepath.Join(root, "x"), false); err == nil {
+	if _, err = router.Resolve("local-internal", filepath.Join(root, "x"), false); err == nil {
 		t.Fatalf("absolute caller path should be rejected")
 	}
 	// A symlink pointing outside the configured root must be refused.
@@ -123,7 +124,7 @@ func TestLocalProviderUsesConfiguredRootNotCallerPath(t *testing.T) {
 	if err = os.Symlink(outside, filepath.Join(root, "link")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = router.resolve("local-internal", "link/file", true); err == nil {
+	if _, err = router.Resolve("local-internal", "link/file", true); err == nil {
 		t.Fatalf("symlink escape should be rejected")
 	}
 }
@@ -131,7 +132,7 @@ func TestLocalProviderUsesConfiguredRootNotCallerPath(t *testing.T) {
 func TestProviderConfigValidation(t *testing.T) {
 	dir := t.TempDir()
 	ok := ProviderConfig{Storages: []StorageEntry{{ID: "a", Kind: "usb", Root: dir}}}
-	if err := ok.validate(); err != nil {
+	if err := ok.Validate(); err != nil {
 		t.Fatalf("valid config rejected: %v", err)
 	}
 	write := func(body string) string {

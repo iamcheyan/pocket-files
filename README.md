@@ -27,7 +27,8 @@ what is mock and what is future work.
 
 ```
 apps/pocket-files/frontend/        React 19 + Vite UI (i18n, themes, profiles, keyboard nav)
-apps/pocket-files/backend/filesd/  API, providers, sandbox, transfer queue, SQLite
+apps/pocket-files/backend/filesd/  HTTP API, transfer queue, SQLite persistence
+apps/pocket-files/backend/storaged/ device discovery, providers, root sandbox
 apps/pocket-files/docs/            architecture, storage, database, API, roadmap, dependencies, screenshots
 apps/pocket-files/tests/           live API smoke test, dev launcher, screenshot capture
 ```

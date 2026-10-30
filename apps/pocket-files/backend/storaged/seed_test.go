@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"bytes"
@@ -66,7 +66,7 @@ func TestGeneratedPNGHeader(t *testing.T) {
 
 func TestSeededMockVolumeContainsPreviewableFiles(t *testing.T) {
 	root := t.TempDir()
-	if err := seedMockVolume(root, "internal", 0); err != nil {
+	if err := SeedMockVolume(root, "internal", 0); err != nil {
 		t.Fatal(err)
 	}
 	for _, rel := range []string{"Books/Field Notes.pdf", "Images/Sample Pixel.png", "Documents/Welcome.txt"} {

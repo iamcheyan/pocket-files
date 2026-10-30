@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"os"
@@ -20,7 +20,7 @@ const mountinfoFixture = `21 1 8:1 / / rw,relatime shared:1 - ext4 /dev/nvme0n1p
 99 21 8:60 / /run/media/label\040with\040space rw,nosuid,nodev shared:99 - vfat /dev/sde1 rw
 `
 
-func fixtureEnv(t *testing.T) discoveryEnv {
+func fixtureEnv(t *testing.T) DiscoveryEnv {
 	t.Helper()
 	root := t.TempDir()
 	write := func(rel, body string) {
@@ -53,7 +53,7 @@ func fixtureEnv(t *testing.T) discoveryEnv {
 			t.Fatal(err)
 		}
 	}
-	return discoveryEnv{
+	return DiscoveryEnv{
 		mountinfoPath: "/proc/self/mountinfo",
 		readFile: func(path string) (string, error) {
 			b, err := os.ReadFile(filepath.Join(root, path))
@@ -68,7 +68,7 @@ func fixtureEnv(t *testing.T) discoveryEnv {
 }
 
 func TestDiscoveryReportsOnlyLabelledRemovableVolumes(t *testing.T) {
-	devices := discoverRemovableStorage(fixtureEnv(t))
+	devices := DiscoverRemovableStorage(fixtureEnv(t))
 	ids := make([]string, 0, len(devices))
 	for _, d := range devices {
 		ids = append(ids, d.ID)
@@ -89,7 +89,7 @@ func TestDiscoveryReportsOnlyLabelledRemovableVolumes(t *testing.T) {
 }
 
 func TestDiscoveryMarksReadOnlyAndDecodesEscapes(t *testing.T) {
-	devices := discoverRemovableStorage(fixtureEnv(t))
+	devices := DiscoverRemovableStorage(fixtureEnv(t))
 	byID := map[string]RemovableDevice{}
 	for _, d := range devices {
 		byID[d.ID] = d
@@ -112,7 +112,7 @@ func TestDiscoveryMarksReadOnlyAndDecodesEscapes(t *testing.T) {
 }
 
 func TestDiscoverySkipsUnlabelledAndProtectsProductionMount(t *testing.T) {
-	devices := discoverRemovableStorage(fixtureEnv(t))
+	devices := DiscoverRemovableStorage(fixtureEnv(t))
 	for _, d := range devices {
 		if strings.Contains(d.MountPoint, "/storage") {
 			t.Fatalf("production data mount was reported as removable: %+v", d)
@@ -124,14 +124,14 @@ func TestDiscoverySkipsUnlabelledAndProtectsProductionMount(t *testing.T) {
 }
 
 func TestDiscoveryHandlesMissingSources(t *testing.T) {
-	empty := discoveryEnv{
+	empty := DiscoveryEnv{
 		mountinfoPath: "/proc/self/mountinfo",
 		readFile:      func(string) (string, error) { return "", os.ErrNotExist },
 		readLink:      os.Readlink,
 		readDir:       os.ReadDir,
 		statfs:        nil,
 	}
-	if got := discoverRemovableStorage(empty); got != nil {
+	if got := DiscoverRemovableStorage(empty); got != nil {
 		t.Fatalf("expected no devices without mountinfo, got %+v", got)
 	}
 	noSysfs := fixtureEnv(t)
@@ -141,7 +141,7 @@ func TestDiscoveryHandlesMissingSources(t *testing.T) {
 		}
 		return "", os.ErrNotExist
 	}
-	if got := discoverRemovableStorage(noSysfs); len(got) != 0 {
+	if got := DiscoverRemovableStorage(noSysfs); len(got) != 0 {
 		t.Fatalf("expected conservative empty result without sysfs, got %+v", got)
 	}
 }

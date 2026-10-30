@@ -2,6 +2,7 @@
 
 FRONTEND := apps/pocket-files/frontend
 BACKEND := apps/pocket-files/backend/filesd
+STORAGED := apps/pocket-files/backend/storaged
 
 all: build
 
@@ -9,6 +10,7 @@ all: build
 build:
 	cd $(FRONTEND) && bun install && bun run build
 	cd $(BACKEND) && go build -o filesd .
+	cd $(STORAGED) && go build ./...
 
 # One command runs the full suite: Go unit/integration tests with the race
 # detector, i18n key parity, TypeScript, the production bundle, and a live API
@@ -16,6 +18,7 @@ build:
 test: test-backend test-frontend e2e
 
 test-backend:
+	cd $(STORAGED) && go vet ./... && go test -race -count=1 ./...
 	cd $(BACKEND) && go vet ./... && go test -race -count=1 ./...
 
 test-frontend:

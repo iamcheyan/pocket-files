@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"errors"
@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-// resolveLocalPath resolves a relative path inside a configured absolute root,
+// resolvePath resolves a relative path inside a configured absolute root,
 // rejecting absolute paths, `..` traversal and symlink escapes. It mirrors the
-// sandbox behaviour already used by MockProvider but is reusable by every
+// Sandbox behaviour already used by MockProvider but is reusable by every
 // local provider.
-func resolveLocalPath(root, rel string, allowMissing bool) (string, error) {
+func ResolvePath(root, rel string, allowMissing bool) (string, error) {
 	if filepath.IsAbs(rel) {
 		return "", fmt.Errorf("absolute paths are forbidden")
 	}

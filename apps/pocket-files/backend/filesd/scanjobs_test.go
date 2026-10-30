@@ -8,7 +8,7 @@ import (
 
 func TestAnalyticsIsSynchronousForSmallTrees(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/small.txt", []byte("hi"))
+	writeFile(t, p.MockRoot("internal"), "Documents/small.txt", []byte("hi"))
 	code, body := doJSON(t, s, http.MethodGet, "/api/analytics?storage_id=internal", nil)
 	if code != 200 {
 		t.Fatalf("small tree should answer synchronously, got %d", code)
@@ -26,7 +26,7 @@ func TestAnalyticsBackgroundsLargeTrees(t *testing.T) {
 	// Create more entries than the async threshold in one flat directory.
 	for i := 0; i < asyncScanThreshold+50; i++ {
 		name := "Documents/bulk-" + itoa(i) + ".txt"
-		writeFile(t, p.roots["internal"], name, []byte("x"))
+		writeFile(t, p.MockRoot("internal"), name, []byte("x"))
 	}
 	code, body := doJSON(t, s, http.MethodGet, "/api/analytics?storage_id=internal", nil)
 	if code != http.StatusAccepted && code != http.StatusOK {

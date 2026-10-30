@@ -299,7 +299,7 @@ func main() {
 	be := newBackend(providers, db)
 	be.recoverTransfers()
 	addr := env("POCKET_FILES_ADDR", "127.0.0.1:8787")
-	log.Printf("filesd listening on %s (%d mock volumes, %d configured, smb/webdav/cloud not implemented)", addr, len(mock.devices), len(cfg.Storages))
+	log.Printf("filesd listening on %s (%d mock volumes, %d configured, smb/webdav/cloud not implemented)", addr, providers.MockVolumeCount(), providers.ConfiguredVolumeCount())
 	if e = http.ListenAndServe(addr, &Server{p: providers, db: db, be: be, apps: newAppRegistry(), downloads: newDownloadsClient()}); e != nil {
 		log.Fatal(e)
 	}

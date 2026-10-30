@@ -121,7 +121,7 @@ func (b *Backend) estimateTreeSize(storageID string, limit int) int {
 	storageIDs := []string{storageID}
 	if storageID == "" {
 		storageIDs = nil
-		for _, d := range b.p.allDevices() {
+		for _, d := range b.p.AllDevices() {
 			storageIDs = append(storageIDs, d.ID)
 		}
 	}

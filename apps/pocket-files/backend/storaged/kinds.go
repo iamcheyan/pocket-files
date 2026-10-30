@@ -1,4 +1,4 @@
-package main
+package storaged
 
 // StorageKind names the concrete provider family advertised by the registry.
 type StorageKind string

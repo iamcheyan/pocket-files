@@ -27,7 +27,7 @@ func newBackend(p storageBackend, db *sql.DB) *Backend {
 }
 
 func (b *Backend) getDevice(id string) (Device, bool) {
-	for _, d := range b.p.allDevices() {
+	for _, d := range b.p.AllDevices() {
 		if d.ID == id {
 			return d, true
 		}
@@ -467,14 +467,14 @@ func (b *Backend) viewByExts(ctx context.Context, exts map[string]bool) []map[st
 			}
 		}
 	}
-	for _, d := range b.p.allDevices() {
+	for _, d := range b.p.AllDevices() {
 		walk(d.ID, "")
 	}
 	return out
 }
 func (b *Backend) viewPath(ctx context.Context, rel string) []map[string]any {
 	out := []map[string]any{}
-	for _, d := range b.p.allDevices() {
+	for _, d := range b.p.AllDevices() {
 		items, e := b.p.Browse(ctx, d.ID, rel)
 		if e != nil {
 			continue
@@ -632,7 +632,7 @@ func (b *Backend) scanTreeWith(storageID string, tick func(files int)) ([]Entry,
 		return total
 	}
 	if storageID == "" {
-		for _, d := range b.p.allDevices() {
+		for _, d := range b.p.AllDevices() {
 			walk(d.ID, "")
 		}
 	} else {
@@ -715,13 +715,7 @@ func resolveRelativeParent(rel string) (string, string) {
 }
 func (b *Backend) recoverTransfers() { b.tc.recover() }
 
-// providerFor resolves a provider through the router when one is configured.
+// providerFor resolves a provider through the storage backend.
 func (b *Backend) providerFor(id string) (Provider, error) {
-	if router, ok := b.p.(*providerRouter); ok {
-		return router.providerFor(id)
-	}
-	if mock, ok := b.p.(*MockProvider); ok {
-		return mock, nil
-	}
-	return nil, ErrNotImplemented
+	return b.p.ProviderFor(id)
 }

@@ -27,7 +27,7 @@ func TestAppForExtensionMapping(t *testing.T) {
 
 func TestAppOpenWithoutRegistryIsExplicitlyUnavailable(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Books/book.epub", []byte("book"))
+	writeFile(t, p.MockRoot("internal"), "Books/book.epub", []byte("book"))
 	s.apps = newAppRegistry()
 
 	code, body := doJSON(t, s, http.MethodGet, "/api/apps/open?storage_id=internal&path=Books/book.epub", nil)
@@ -55,7 +55,7 @@ func TestAppOpenCallsConfiguredRegistry(t *testing.T) {
 	defer registry.Close()
 
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Videos/clip.mp4", []byte("video"))
+	writeFile(t, p.MockRoot("internal"), "Videos/clip.mp4", []byte("video"))
 	s.apps = &appRegistry{entrypoint: registry.URL, client: registry.Client()}
 
 	code, body := doJSON(t, s, http.MethodGet, "/api/apps/open?storage_id=internal&path=Videos/clip.mp4", nil)
@@ -72,7 +72,7 @@ func TestAppOpenCallsConfiguredRegistry(t *testing.T) {
 
 func TestAppOpenUnknownTypeAndMissingEntry(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/a.zip", []byte("zip"))
+	writeFile(t, p.MockRoot("internal"), "Documents/a.zip", []byte("zip"))
 	s.apps = newAppRegistry()
 	code, body := doJSON(t, s, http.MethodGet, "/api/apps/open?storage_id=internal&path=Documents/a.zip", nil)
 	if code != 200 || body["status"] != "unavailable" || body["reason"] != "no_app_for_type" {

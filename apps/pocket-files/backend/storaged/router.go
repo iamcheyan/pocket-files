@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"context"
@@ -25,18 +25,20 @@ type storageBackend interface {
 	resolve(storageID, rel string, allowMissing bool) (string, error)
 }
 
-// providerRouter routes every operation to the provider that owns the storage
+// Router routes every operation to the provider that owns the storage
 // ID. Local providers are configured by the operator; mock volumes are always
 // present; network/cloud providers are visible stubs.
-type providerRouter struct {
-	mock  *MockProvider
-	byID  map[string]Provider
-	order []string
-	roots map[string]string
+type Router struct {
+	mock            *MockProvider
+	mockCount       int
+	configuredCount int
+	byID            map[string]Provider
+	order           []string
+	roots           map[string]string
 }
 
-func newProviderRouter(mock *MockProvider, cfg ProviderConfig) (*providerRouter, error) {
-	r := &providerRouter{mock: mock, byID: map[string]Provider{}, roots: map[string]string{}}
+func NewRouter(mock *MockProvider, cfg Config) (*Router, error) {
+	r := &Router{mock: mock, mockCount: len(mock.devices), configuredCount: len(cfg.Storages), byID: map[string]Provider{}, roots: map[string]string{}}
 	for _, d := range mock.devices {
 		r.byID[d.ID] = mock
 		r.roots[d.ID] = mock.roots[d.ID]
@@ -79,7 +81,7 @@ func friendlyOrDefault(entry StorageEntry) string {
 	return entry.ID
 }
 
-func (r *providerRouter) provider(id string) (Provider, error) {
+func (r *Router) provider(id string) (Provider, error) {
 	p, ok := r.byID[id]
 	if !ok {
 		return nil, fmt.Errorf("unknown storage")
@@ -87,7 +89,7 @@ func (r *providerRouter) provider(id string) (Provider, error) {
 	return p, nil
 }
 
-func (r *providerRouter) Discover(ctx context.Context) ([]Device, error) {
+func (r *Router) Discover(ctx context.Context) ([]Device, error) {
 	// A provider may advertise several volumes (the mock provider serves four),
 	// and the same provider can own multiple IDs, so results are deduplicated by
 	// storage ID while preserving registry order. Unimplemented providers are
@@ -110,7 +112,7 @@ func (r *providerRouter) Discover(ctx context.Context) ([]Device, error) {
 	return out, nil
 }
 
-func (r *providerRouter) Browse(ctx context.Context, id, rel string) ([]Entry, error) {
+func (r *Router) Browse(ctx context.Context, id, rel string) ([]Entry, error) {
 	p, err := r.provider(id)
 	if err != nil {
 		return nil, err
@@ -118,7 +120,7 @@ func (r *providerRouter) Browse(ctx context.Context, id, rel string) ([]Entry, e
 	return p.Browse(ctx, id, rel)
 }
 
-func (r *providerRouter) Search(ctx context.Context, id, q string) ([]Entry, error) {
+func (r *Router) Search(ctx context.Context, id, q string) ([]Entry, error) {
 	p, err := r.provider(id)
 	if err != nil {
 		return nil, err
@@ -126,7 +128,7 @@ func (r *providerRouter) Search(ctx context.Context, id, q string) ([]Entry, err
 	return p.Search(ctx, id, q)
 }
 
-func (r *providerRouter) Stat(ctx context.Context, id, rel string) (Entry, error) {
+func (r *Router) Stat(ctx context.Context, id, rel string) (Entry, error) {
 	p, err := r.provider(id)
 	if err != nil {
 		return Entry{}, err
@@ -134,7 +136,7 @@ func (r *providerRouter) Stat(ctx context.Context, id, rel string) (Entry, error
 	return p.Stat(ctx, id, rel)
 }
 
-func (r *providerRouter) Copy(ctx context.Context, id, src, dst string) error {
+func (r *Router) Copy(ctx context.Context, id, src, dst string) error {
 	p, err := r.provider(id)
 	if err != nil {
 		return err
@@ -142,7 +144,7 @@ func (r *providerRouter) Copy(ctx context.Context, id, src, dst string) error {
 	return p.Copy(ctx, id, src, dst)
 }
 
-func (r *providerRouter) Move(ctx context.Context, id, src, dst string) error {
+func (r *Router) Move(ctx context.Context, id, src, dst string) error {
 	p, err := r.provider(id)
 	if err != nil {
 		return err
@@ -150,7 +152,7 @@ func (r *providerRouter) Move(ctx context.Context, id, src, dst string) error {
 	return p.Move(ctx, id, src, dst)
 }
 
-func (r *providerRouter) Delete(ctx context.Context, id, rel string) error {
+func (r *Router) Delete(ctx context.Context, id, rel string) error {
 	p, err := r.provider(id)
 	if err != nil {
 		return err
@@ -158,7 +160,7 @@ func (r *providerRouter) Delete(ctx context.Context, id, rel string) error {
 	return p.Delete(ctx, id, rel)
 }
 
-func (r *providerRouter) CreateDir(ctx context.Context, id, rel string) error {
+func (r *Router) CreateDir(ctx context.Context, id, rel string) error {
 	p, err := r.provider(id)
 	if err != nil {
 		return err
@@ -166,7 +168,7 @@ func (r *providerRouter) CreateDir(ctx context.Context, id, rel string) error {
 	return p.CreateDir(ctx, id, rel)
 }
 
-func (r *providerRouter) AvailableSpace(ctx context.Context, id string) (int64, int64, error) {
+func (r *Router) AvailableSpace(ctx context.Context, id string) (int64, int64, error) {
 	p, err := r.provider(id)
 	if err != nil {
 		return 0, 0, err
@@ -174,7 +176,7 @@ func (r *providerRouter) AvailableSpace(ctx context.Context, id string) (int64, 
 	return p.AvailableSpace(ctx, id)
 }
 
-func (r *providerRouter) Trash(ctx context.Context, id, rel string) (string, error) {
+func (r *Router) Trash(ctx context.Context, id, rel string) (string, error) {
 	switch p := r.byID[id].(type) {
 	case *MockProvider:
 		return p.Trash(ctx, id, rel)
@@ -188,7 +190,7 @@ func (r *providerRouter) Trash(ctx context.Context, id, rel string) (string, err
 	return "", ErrNotImplemented
 }
 
-func (r *providerRouter) Restore(ctx context.Context, id, src, trashRel string) error {
+func (r *Router) Restore(ctx context.Context, id, src, trashRel string) error {
 	switch p := r.byID[id].(type) {
 	case *MockProvider:
 		return p.Restore(ctx, id, src, trashRel)
@@ -202,7 +204,7 @@ func (r *providerRouter) Restore(ctx context.Context, id, src, trashRel string) 
 	return ErrNotImplemented
 }
 
-func (r *providerRouter) allDevices() []Device {
+func (r *Router) AllDevices() []Device {
 	devices, err := r.Discover(context.Background())
 	if err != nil {
 		return nil
@@ -212,7 +214,7 @@ func (r *providerRouter) allDevices() []Device {
 
 // resolve returns a host path only for local providers. Network stubs refuse so
 // no caller can read a filesystem on their behalf.
-func (r *providerRouter) resolve(storageID, rel string, allowMissing bool) (string, error) {
+func (r *Router) Resolve(storageID, rel string, allowMissing bool) (string, error) {
 	root, ok := r.roots[storageID]
 	if !ok {
 		if _, known := r.byID[storageID]; known {
@@ -220,7 +222,7 @@ func (r *providerRouter) resolve(storageID, rel string, allowMissing bool) (stri
 		}
 		return "", fmt.Errorf("unknown storage")
 	}
-	return resolveLocalPath(root, rel, allowMissing)
+	return ResolvePath(root, rel, allowMissing)
 }
 
 func isNotImplemented(err error) bool {
@@ -229,6 +231,17 @@ func isNotImplemented(err error) bool {
 
 // providerFor exposes the provider that owns a storage ID so handlers can call
 // lifecycle methods (mount/unmount) that are not part of the read/write surface.
-func (r *providerRouter) providerFor(id string) (Provider, error) {
+func (r *Router) ProviderFor(id string) (Provider, error) {
 	return r.provider(id)
 }
+
+// MockVolumeCount and ConfiguredVolumeCount describe how the router was built so
+// the daemon can log a truthful startup summary.
+func (r *Router) MockVolumeCount() int       { return r.mockCount }
+func (r *Router) ConfiguredVolumeCount() int { return r.configuredCount }
+
+// Mount and Unmount are lifecycle operations. They are intentionally refused for
+// every provider: no request may mount or unmount a host volume without an
+// explicit operator action outside this service.
+func (r *Router) Mount(context.Context, string) error   { return ErrNotImplemented }
+func (r *Router) Unmount(context.Context, string) error { return ErrNotImplemented }

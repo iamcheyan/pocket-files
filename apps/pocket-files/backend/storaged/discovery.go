@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"os"
@@ -25,7 +25,7 @@ type RemovableDevice struct {
 	Node       string
 }
 
-type discoveryEnv struct {
+type DiscoveryEnv struct {
 	mountinfoPath string
 	readFile      func(string) (string, error)
 	readLink      func(string) (string, error)
@@ -33,8 +33,8 @@ type discoveryEnv struct {
 	statfs        func(string) (total, free int64, err error)
 }
 
-func defaultDiscoveryEnv() discoveryEnv {
-	return discoveryEnv{
+func DefaultDiscoveryEnv() DiscoveryEnv {
+	return DiscoveryEnv{
 		mountinfoPath: "/proc/self/mountinfo",
 		readFile:      func(path string) (string, error) { b, err := os.ReadFile(path); return string(b), err },
 		readLink:      os.Readlink,
@@ -43,10 +43,10 @@ func defaultDiscoveryEnv() discoveryEnv {
 	}
 }
 
-// discoverRemovableStorage reports attached removable filesystems without
+// DiscoverRemovableStorage reports attached removable filesystems without
 // mounting, unmounting or writing anything. Identification is conservative:
 // anything not positively marked removable in sysfs is omitted.
-func discoverRemovableStorage(env discoveryEnv) []RemovableDevice {
+func DiscoverRemovableStorage(env DiscoveryEnv) []RemovableDevice {
 	content, err := env.readFile(env.mountinfoPath)
 	if err != nil {
 		return nil
@@ -67,7 +67,7 @@ func discoverRemovableStorage(env discoveryEnv) []RemovableDevice {
 
 // parseMountinfoLine parses one /proc/self/mountinfo record:
 // id parent major:minor root mountpoint options - fstype source superopts
-func parseMountinfoLine(line string, env discoveryEnv) (RemovableDevice, bool) {
+func parseMountinfoLine(line string, env DiscoveryEnv) (RemovableDevice, bool) {
 	fields := strings.Fields(line)
 	if len(fields) < 10 {
 		return RemovableDevice{}, false
@@ -113,7 +113,7 @@ func parseMountinfoLine(line string, env discoveryEnv) (RemovableDevice, bool) {
 	return dev, true
 }
 
-func sysfsRemovable(kernel string, env discoveryEnv) bool {
+func sysfsRemovable(kernel string, env DiscoveryEnv) bool {
 	for _, candidate := range []string{kernel, stripPartition(kernel)} {
 		if content, err := env.readFile(filepath.Join("/sys/class/block", candidate, "removable")); err == nil {
 			return strings.TrimSpace(content) == "1"
@@ -182,7 +182,7 @@ func stripPartition(kernel string) string {
 // stableDeviceID resolves a partitions's filesystem UUID through
 // /dev/disk/by-uuid. Without a UUID the device is skipped rather than being
 // given a guessed slot name such as "TF-A".
-func stableDeviceID(node string, env discoveryEnv) string {
+func stableDeviceID(node string, env DiscoveryEnv) string {
 	entries, err := env.readDir("/dev/disk/by-uuid")
 	if err != nil {
 		return ""
@@ -207,6 +207,6 @@ func kindDisplayName(kind string) string {
 }
 
 func statfsUsage(path string) (total, free int64, err error) {
-	total, _, free, err = statfsNumbers(path)
+	total, _, free, err = StatfsNumbers(path)
 	return total, free, err
 }

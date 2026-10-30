@@ -44,7 +44,7 @@ func (b *Backend) addPinned(name, storageID, uri string) (pinnedLocation, error)
 	// directory is rejected so the sidebar cannot accumulate dead links. A pin
 	// to the storage root itself (empty URI) is allowed.
 	if clean != "" {
-		if _, err := b.p.resolve(storageID, clean, false); err != nil {
+		if _, err := b.p.Resolve(storageID, clean, false); err != nil {
 			return pinnedLocation{}, errInvalidPin("location does not exist inside this storage")
 		}
 	}

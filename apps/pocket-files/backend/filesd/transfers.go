@@ -447,7 +447,7 @@ func dstResolved(p storageBackend, id, rel string) string {
 	return full
 }
 func tryResolve(p storageBackend, id, rel string) (string, error) {
-	return p.resolve(id, rel, true)
+	return p.Resolve(id, rel, true)
 }
 func uniqueName(p storageBackend, id, rel string) string {
 	dir, name := resolveRelativeParent(rel)
@@ -469,7 +469,7 @@ func uniqueName(p storageBackend, id, rel string) string {
 var errCancelled = fmt.Errorf("cancelled")
 
 func copyStreamProgress(p storageBackend, j *transferJob, id, src, dstStorage, dst string, stop chan struct{}, started time.Time) error {
-	a, e := p.resolve(id, src, false)
+	a, e := p.Resolve(id, src, false)
 	if e != nil {
 		return fmt.Errorf("read %q: not found", src)
 	}
@@ -478,7 +478,7 @@ func copyStreamProgress(p storageBackend, j *transferJob, id, src, dstStorage, d
 		return fmt.Errorf("read %q: io error", src)
 	}
 	defer in.Close()
-	b, err := p.resolve(dstStorage, dst, true)
+	b, err := p.Resolve(dstStorage, dst, true)
 	if err != nil {
 		return fmt.Errorf("write %q: io error", dst)
 	}

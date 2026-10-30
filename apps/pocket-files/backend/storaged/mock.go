@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"context"
@@ -43,9 +43,9 @@ type Provider interface {
 	AvailableSpace(context.Context, string) (int64, int64, error)
 }
 
-type sandbox struct{ roots map[string]string }
+type Sandbox struct{ roots map[string]string }
 
-func (s sandbox) resolve(storage, rel string, allowMissing bool) (string, error) {
+func (s Sandbox) Resolve(storage, rel string, allowMissing bool) (string, error) {
 	root, ok := s.roots[storage]
 	if !ok {
 		return "", fmt.Errorf("unknown storage")
@@ -91,7 +91,7 @@ type MockProvider struct {
 	devices []Device
 }
 
-func newMockProvider() (*MockProvider, error) {
+func NewMockProvider() (*MockProvider, error) {
 	base, err := os.MkdirTemp("", "pocket-files-mock-")
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func newMockProvider() (*MockProvider, error) {
 				return nil, err
 			}
 		}
-		if err = seedMockVolume(root, d.id, len(p.devices)); err != nil {
+		if err = SeedMockVolume(root, d.id, len(p.devices)); err != nil {
 			return nil, err
 		}
 		p.devices = append(p.devices, Device{ID: d.id, Name: d.name, Kind: d.kind, Status: "ready", Mock: true, Total: d.total, Root: root})
@@ -176,7 +176,7 @@ func (p *MockProvider) entries(id, rel string) ([]Entry, error) {
 	if _, e := p.root(id); e != nil {
 		return nil, e
 	}
-	full, e := (sandbox{p.roots}).resolve(id, rel, false)
+	full, e := (Sandbox{p.roots}).Resolve(id, rel, false)
 	if e != nil {
 		return nil, e
 	}
@@ -234,7 +234,7 @@ func (p *MockProvider) Search(_ context.Context, id, q string) ([]Entry, error) 
 }
 
 func (p *MockProvider) Stat(_ context.Context, id, rel string) (Entry, error) {
-	full, e := (sandbox{p.roots}).resolve(id, rel, false)
+	full, e := (Sandbox{p.roots}).Resolve(id, rel, false)
 	if e != nil {
 		return Entry{}, e
 	}
@@ -251,7 +251,7 @@ func (p *MockProvider) Stat(_ context.Context, id, rel string) (Entry, error) {
 }
 
 func (p *MockProvider) CreateDir(_ context.Context, id, rel string) error {
-	full, e := (sandbox{p.roots}).resolve(id, rel, true)
+	full, e := (Sandbox{p.roots}).Resolve(id, rel, true)
 	if e != nil {
 		return e
 	}
@@ -262,11 +262,11 @@ func (p *MockProvider) CreateDir(_ context.Context, id, rel string) error {
 }
 
 func (p *MockProvider) Copy(_ context.Context, id, src, dst string) error {
-	a, e := (sandbox{p.roots}).resolve(id, src, false)
+	a, e := (Sandbox{p.roots}).Resolve(id, src, false)
 	if e != nil {
 		return e
 	}
-	b, e := (sandbox{p.roots}).resolve(id, dst, true)
+	b, e := (Sandbox{p.roots}).Resolve(id, dst, true)
 	if e != nil {
 		return e
 	}
@@ -291,11 +291,11 @@ func (p *MockProvider) Copy(_ context.Context, id, src, dst string) error {
 }
 
 func (p *MockProvider) Move(_ context.Context, id, src, dst string) error {
-	a, e := (sandbox{p.roots}).resolve(id, src, false)
+	a, e := (Sandbox{p.roots}).Resolve(id, src, false)
 	if e != nil {
 		return e
 	}
-	b, e := (sandbox{p.roots}).resolve(id, dst, true)
+	b, e := (Sandbox{p.roots}).Resolve(id, dst, true)
 	if e != nil {
 		return e
 	}
@@ -309,7 +309,7 @@ func (p *MockProvider) Move(_ context.Context, id, src, dst string) error {
 }
 
 func (p *MockProvider) Delete(_ context.Context, id, rel string) error {
-	full, e := (sandbox{p.roots}).resolve(id, rel, false)
+	full, e := (Sandbox{p.roots}).Resolve(id, rel, false)
 	if e != nil {
 		return e
 	}
@@ -320,7 +320,7 @@ func (p *MockProvider) Delete(_ context.Context, id, rel string) error {
 }
 
 func (p *MockProvider) Trash(_ context.Context, id, rel string) (string, error) {
-	full, e := (sandbox{p.roots}).resolve(id, rel, false)
+	full, e := (Sandbox{p.roots}).Resolve(id, rel, false)
 	if e != nil {
 		return "", e
 	}
@@ -354,7 +354,7 @@ func (p *MockProvider) Restore(_ context.Context, id, src, trashRel string) erro
 	if e != nil {
 		return e
 	}
-	srcFull, e := (sandbox{p.roots}).resolve(id, src, true)
+	srcFull, e := (Sandbox{p.roots}).Resolve(id, src, true)
 	if e != nil {
 		return e
 	}
@@ -378,3 +378,19 @@ func (p *MockProvider) AvailableSpace(_ context.Context, id string) (int64, int6
 }
 
 var _ Provider = (*MockProvider)(nil)
+
+// AllDevices and Resolve/FroviderFor make the mock provider usable on its own,
+// which keeps storage tests independent of the router. Production always goes
+// through Router.
+func (p *MockProvider) AllDevices() []Device { return append([]Device(nil), p.devices...) }
+
+func (p *MockProvider) Resolve(storageID, rel string, allowMissing bool) (string, error) {
+	return (Sandbox{p.roots}).Resolve(storageID, rel, allowMissing)
+}
+
+func (p *MockProvider) ProviderFor(string) (Provider, error) { return p, nil }
+
+func (p *MockProvider) MockVolumeCount() int       { return len(p.devices) }
+func (p *MockProvider) ConfiguredVolumeCount() int { return 0 }
+
+var _ Backend = (*MockProvider)(nil)

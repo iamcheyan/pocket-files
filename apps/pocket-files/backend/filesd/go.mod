@@ -2,6 +2,10 @@ module github.com/iamcheyan/pocket-files/apps/pocket-files/backend/filesd
 
 go 1.26.0
 
+require github.com/iamcheyan/pocket-files/apps/pocket-files/backend/storaged v0.0.0
+
+replace github.com/iamcheyan/pocket-files/apps/pocket-files/backend/storaged => ../storaged
+
 require modernc.org/sqlite v1.38.2
 
 require (

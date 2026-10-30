@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"encoding/json"
@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-// ProviderConfig is the on-disk operator configuration for real local volumes.
+// Config is the on-disk operator configuration for real local volumes.
 // It is read from POCKET_FILES_CONFIG; without it the service runs on mock
 // storage only. Roots are validated once at startup and never accepted from an
 // API caller.
-type ProviderConfig struct {
+type Config struct {
 	Storages []StorageEntry `json:"storages"`
 }
 
@@ -28,25 +28,25 @@ type StorageEntry struct {
 // volume: system trees and the production data disk.
 var forbiddenRoots = []string{"/", "/nix", "/nix/store", "/boot", "/home", "/storage", "/etc", "/usr", "/var"}
 
-func loadProviderConfig(path string) (ProviderConfig, error) {
+func LoadConfig(path string) (Config, error) {
 	if path == "" {
-		return ProviderConfig{}, nil
+		return Config{}, nil
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return ProviderConfig{}, fmt.Errorf("read provider config: %w", err)
+		return Config{}, fmt.Errorf("read provider config: %w", err)
 	}
-	var cfg ProviderConfig
+	var cfg Config
 	if err = json.Unmarshal(data, &cfg); err != nil {
-		return ProviderConfig{}, fmt.Errorf("parse provider config: %w", err)
+		return Config{}, fmt.Errorf("parse provider config: %w", err)
 	}
-	if err = cfg.validate(); err != nil {
-		return ProviderConfig{}, err
+	if err = cfg.Validate(); err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }
 
-func (c ProviderConfig) validate() error {
+func (c Config) Validate() error {
 	seen := map[string]bool{}
 	for _, entry := range c.Storages {
 		if entry.ID == "" {

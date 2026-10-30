@@ -1,10 +1,10 @@
-package main
+package storaged
 
 import "syscall"
 
-// statfsNumbers returns total and free bytes for a directory. Real providers use
+// StatfsNumbers returns total and free bytes for a directory. Real providers use
 // it for honest capacity; mock volumes report their declared nominal capacity.
-func statfsNumbers(path string) (total, avail, free int64, err error) {
+func StatfsNumbers(path string) (total, avail, free int64, err error) {
 	var st syscall.Statfs_t
 	if err = syscall.Statfs(path, &st); err != nil {
 		return 0, 0, 0, err

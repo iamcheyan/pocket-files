@@ -17,13 +17,23 @@ filesystem (sandboxed, root-confined) + modernc.org/sqlite
 
 ## Process boundaries
 
-`filesd` is a single HTTP daemon today. The provider layer is the storage
-boundary that `storaged` will occupy: every storage operation goes through the
-`Provider` interface (`Discover/Mount/Unmount/Browse/Search/Stat/Copy/Move/
-Delete/CreateDir/AvailableSpace`, plus `Trash`/`Restore` for recoverable deletes).
-Handlers, the transfer controller and analytics all talk to `storageBackend`, not
-to a concrete provider, so splitting `storaged` out is a packaging change rather
-than a redesign.
+Storage lives in its own Go package, `apps/pocket-files/backend/storaged`:
+
+```text
+filesd  (HTTP API, search/index, transfer orchestration, SQLite)
+   │  imports
+   ▼
+storaged (device discovery, providers, root sandbox, capacity)
+```
+
+Every storage operation crosses the `storaged.Provider` interface
+(`Discover/Mount/Unmount/Browse/Search/Stat/Copy/Move/Delete/CreateDir/
+AvailableSpace`, plus `Trash`/`Restore` for recoverable deletes). `storaged.Router`
+implements `storaged.Backend` and owns the device inventory, provider lookup and
+sandboxed path resolution. `filesd` handlers, the transfer controller and
+analytics only see that interface, so the two packages can be separated into
+distinct processes (a `storaged` daemon plus an internal transport) without
+changing the HTTP contract.
 
 The UI never receives an absolute path, a device node or a database row. It gets
 storage IDs, friendly names, provider-relative entry IDs (`storage_id:path`),

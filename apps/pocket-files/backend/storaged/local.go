@@ -1,4 +1,4 @@
-package main
+package storaged
 
 import (
 	"context"
@@ -14,7 +14,7 @@ var ErrNotImplemented = errors.New("not_implemented")
 
 // LocalProvider serves one configured absolute root directory. The root is
 // supplied by configuration, never by API callers, so callers cannot point it
-// at production data or escape the sandbox.
+// at production data or escape the Sandbox.
 type LocalProvider struct {
 	id   string
 	name string
@@ -34,7 +34,7 @@ func (p *LocalProvider) Root() string   { return p.root }
 func (p *LocalProvider) ReadOnly() bool { return p.ro }
 
 func (p *LocalProvider) resolve(rel string, allowMissing bool) (string, error) {
-	return resolveLocalPath(p.root, rel, allowMissing)
+	return ResolvePath(p.root, rel, allowMissing)
 }
 
 func (p *LocalProvider) Discover(context.Context) ([]Device, error) {
@@ -218,7 +218,7 @@ func (p *LocalProvider) Restore(_ context.Context, _, src, trashRel string) erro
 }
 
 func (p *LocalProvider) AvailableSpace(_ context.Context, _ string) (int64, int64, error) {
-	total, _, free, err := statfsNumbers(p.root)
+	total, _, free, err := StatfsNumbers(p.root)
 	if err != nil {
 		return 0, 0, err
 	}

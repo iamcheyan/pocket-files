@@ -1,5 +1,8 @@
 # Storage
 
+All of this lives in the standalone `backend/storaged` package; `filesd` consumes
+it through the `storaged.Backend` interface and never touches a filesystem itself.
+
 ## Provider contract
 
 ```go

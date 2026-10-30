@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/iamcheyan/pocket-files/apps/pocket-files/backend/storaged"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,13 +16,13 @@ import (
 	"time"
 )
 
-func newTestServer(t *testing.T) (*Server, *MockProvider, string) {
+func newTestServer(t *testing.T) (*Server, *storaged.MockProvider, string) {
 	t.Helper()
 	p, err := newMockProvider()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(p.roots["internal"])) })
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(p.MockRoot("internal"))) })
 	db, err := openDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +30,7 @@ func newTestServer(t *testing.T) (*Server, *MockProvider, string) {
 	t.Cleanup(func() { _ = db.Close() })
 	be := newBackend(p, db)
 	be.recoverTransfers()
-	return &Server{p: p, db: db, be: be}, p, filepath.Dir(p.roots["internal"])
+	return &Server{p: p, db: db, be: be}, p, filepath.Dir(p.MockRoot("internal"))
 }
 
 func doJSON(t *testing.T, s *Server, method, path string, body any) (int, map[string]any) {
@@ -98,26 +99,26 @@ func waitJob(t *testing.T, s *Server, id string, pred func(map[string]any) bool,
 
 func TestOperationsCopyMoveDeleteUndo(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/a.txt", []byte("hello world"))
+	writeFile(t, p.MockRoot("internal"), "Documents/a.txt", []byte("hello world"))
 	code, body := doJSON(t, s, http.MethodPost, "/api/operations", map[string]any{"action": "copy", "storage_id": "internal", "source": "Documents/a.txt", "destination": "Documents/b.txt"})
 	if code != 200 {
 		t.Fatalf("copy %d %v", code, body)
 	}
-	if b, e := os.ReadFile(filepath.Join(p.roots["internal"], "Documents/b.txt")); e != nil || string(b) != "hello world" {
+	if b, e := os.ReadFile(filepath.Join(p.MockRoot("internal"), "Documents/b.txt")); e != nil || string(b) != "hello world" {
 		t.Fatalf("copy content %q %v", b, e)
 	}
 	code, _ = doJSON(t, s, http.MethodPost, "/api/operations", map[string]any{"action": "move", "storage_id": "internal", "source": "Documents/b.txt", "destination": "Documents/c.txt"})
 	if code != 200 {
 		t.Fatalf("move %d", code)
 	}
-	if _, e := os.Stat(filepath.Join(p.roots["internal"], "Documents/b.txt")); !os.IsNotExist(e) {
+	if _, e := os.Stat(filepath.Join(p.MockRoot("internal"), "Documents/b.txt")); !os.IsNotExist(e) {
 		t.Fatalf("source still exists")
 	}
 	code, delBody := doJSON(t, s, http.MethodPost, "/api/operations", map[string]any{"action": "delete", "storage_id": "internal", "source": "Documents/c.txt"})
 	if code != 200 {
 		t.Fatalf("delete %d %v", code, delBody)
 	}
-	if _, e := os.Stat(filepath.Join(p.roots["internal"], "Documents/c.txt")); !os.IsNotExist(e) {
+	if _, e := os.Stat(filepath.Join(p.MockRoot("internal"), "Documents/c.txt")); !os.IsNotExist(e) {
 		t.Fatalf("deleted file still present")
 	}
 	tp, _ := delBody["trash_path"].(string)
@@ -131,20 +132,20 @@ func TestOperationsCopyMoveDeleteUndo(t *testing.T) {
 	if code != 200 {
 		t.Fatalf("undo %d %v", code, undoBody)
 	}
-	if b, e := os.ReadFile(filepath.Join(p.roots["internal"], "Documents/c.txt")); e != nil || string(b) != "hello world" {
+	if b, e := os.ReadFile(filepath.Join(p.MockRoot("internal"), "Documents/c.txt")); e != nil || string(b) != "hello world" {
 		t.Fatalf("restored content %q %v", b, e)
 	}
 }
 
 func TestBulkDeleteRequiresConfirm(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/x.txt", []byte("x"))
-	writeFile(t, p.roots["internal"], "Documents/y.txt", []byte("y"))
+	writeFile(t, p.MockRoot("internal"), "Documents/x.txt", []byte("x"))
+	writeFile(t, p.MockRoot("internal"), "Documents/y.txt", []byte("y"))
 	code, body := doJSON(t, s, http.MethodPost, "/api/operations/bulk", map[string]any{"action": "delete", "storage_id": "internal", "sources": []string{"Documents/x.txt", "Documents/y.txt"}})
 	if code != 400 {
 		t.Fatalf("expected 400 without confirm, got %d %v", code, body)
 	}
-	if _, e := os.Stat(filepath.Join(p.roots["internal"], "Documents/x.txt")); e != nil {
+	if _, e := os.Stat(filepath.Join(p.MockRoot("internal"), "Documents/x.txt")); e != nil {
 		t.Fatal("file deleted without confirm")
 	}
 	code, body = doJSON(t, s, http.MethodPost, "/api/operations/bulk", map[string]any{"action": "delete", "storage_id": "internal", "confirm": true, "sources": []string{"Documents/x.txt", "Documents/y.txt"}})
@@ -161,7 +162,7 @@ func TestBulkDeleteRequiresConfirm(t *testing.T) {
 			t.Fatalf("bulk item failed: %v", m)
 		}
 	}
-	if _, e := os.Stat(filepath.Join(p.roots["internal"], "Documents/x.txt")); !os.IsNotExist(e) {
+	if _, e := os.Stat(filepath.Join(p.MockRoot("internal"), "Documents/x.txt")); !os.IsNotExist(e) {
 		t.Fatalf("file still present")
 	}
 }
@@ -276,9 +277,9 @@ func TestStorageFriendlyNameAndUsage(t *testing.T) {
 
 func TestFileMetadataPreviewViewsAndApps(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/note.md", []byte("# hi"))
-	writeFile(t, p.roots["internal"], "Documents/pic.png", []byte("\x89PNG\r\n\x1a\n"))
-	writeFile(t, p.roots["internal"], "Books/book.epub", []byte("book"))
+	writeFile(t, p.MockRoot("internal"), "Documents/note.md", []byte("# hi"))
+	writeFile(t, p.MockRoot("internal"), "Documents/pic.png", []byte("\x89PNG\r\n\x1a\n"))
+	writeFile(t, p.MockRoot("internal"), "Books/book.epub", []byte("book"))
 	code, meta := doJSON(t, s, http.MethodGet, "/api/files/metadata/internal:Documents/note.md", nil)
 	if code != 200 {
 		t.Fatalf("metadata %d %v", code, meta)
@@ -322,8 +323,8 @@ func TestFileMetadataPreviewViewsAndApps(t *testing.T) {
 
 func TestSearchFilterSort(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/small.txt", []byte("a"))
-	writeFile(t, p.roots["internal"], "Documents/large.txt", bytes.Repeat([]byte("b"), 4096))
+	writeFile(t, p.MockRoot("internal"), "Documents/small.txt", []byte("a"))
+	writeFile(t, p.MockRoot("internal"), "Documents/large.txt", bytes.Repeat([]byte("b"), 4096))
 	code, body := doJSON(t, s, http.MethodGet, "/api/files?storage_id=internal&path=Documents&ext=txt&sort=size&order=desc", nil)
 	if code != 200 {
 		t.Fatalf("search %d %v", code, body)
@@ -377,11 +378,11 @@ func TestSearchFilterSort(t *testing.T) {
 
 func TestAnalyticsCounts(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Books/b.epub", []byte("book"))
-	writeFile(t, p.roots["internal"], "Music/m.mp3", []byte("music"))
-	writeFile(t, p.roots["internal"], "Videos/v.mp4", []byte("video"))
-	writeFile(t, p.roots["internal"], "ROMs/r.gba", []byte("game"))
-	writeFile(t, p.roots["internal"], "Documents/d.pdf", []byte("doc"))
+	writeFile(t, p.MockRoot("internal"), "Books/b.epub", []byte("book"))
+	writeFile(t, p.MockRoot("internal"), "Music/m.mp3", []byte("music"))
+	writeFile(t, p.MockRoot("internal"), "Videos/v.mp4", []byte("video"))
+	writeFile(t, p.MockRoot("internal"), "ROMs/r.gba", []byte("game"))
+	writeFile(t, p.MockRoot("internal"), "Documents/d.pdf", []byte("doc"))
 	code, body := doJSON(t, s, http.MethodGet, "/api/analytics?storage_id=internal", nil)
 	if code != 200 {
 		t.Fatalf("analytics %d %v", code, body)
@@ -405,8 +406,8 @@ func TestAnalyticsCounts(t *testing.T) {
 
 func TestTransferConflictSkipReplaceKeepBothAndAsk(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/src.txt", []byte("new"))
-	writeFile(t, p.roots["internal"], "Documents/dst.txt", []byte("old"))
+	writeFile(t, p.MockRoot("internal"), "Documents/src.txt", []byte("new"))
+	writeFile(t, p.MockRoot("internal"), "Documents/dst.txt", []byte("old"))
 	// skip: leave destination untouched
 	code, body := doJSON(t, s, http.MethodPost, "/api/transfers", map[string]any{
 		"id": "job-skip", "type": "copy", "storage_id": "internal", "conflict_strategy": "skip",
@@ -416,7 +417,7 @@ func TestTransferConflictSkipReplaceKeepBothAndAsk(t *testing.T) {
 		t.Fatalf("create skip %d %v", code, body)
 	}
 	waitJob(t, s, "job-skip", func(m map[string]any) bool { return m["status"] == "completed" }, 2*time.Second)
-	if b, _ := os.ReadFile(filepath.Join(p.roots["internal"], "Documents/dst.txt")); string(b) != "old" {
+	if b, _ := os.ReadFile(filepath.Join(p.MockRoot("internal"), "Documents/dst.txt")); string(b) != "old" {
 		t.Fatalf("skip overwrote: %q", b)
 	}
 	// replace: destination becomes new
@@ -428,7 +429,7 @@ func TestTransferConflictSkipReplaceKeepBothAndAsk(t *testing.T) {
 		t.Fatalf("create replace %d", code)
 	}
 	waitJob(t, s, "job-replace", func(m map[string]any) bool { return m["status"] == "completed" }, 2*time.Second)
-	if b, _ := os.ReadFile(filepath.Join(p.roots["internal"], "Documents/dst.txt")); string(b) != "new" {
+	if b, _ := os.ReadFile(filepath.Join(p.MockRoot("internal"), "Documents/dst.txt")); string(b) != "new" {
 		t.Fatalf("replace failed: %q", b)
 	}
 	// keep_both: new file created
@@ -440,7 +441,7 @@ func TestTransferConflictSkipReplaceKeepBothAndAsk(t *testing.T) {
 		t.Fatalf("create keep_both %d", code)
 	}
 	waitJob(t, s, "job-both", func(m map[string]any) bool { return m["status"] == "completed" }, 2*time.Second)
-	matches, _ := filepath.Glob(filepath.Join(p.roots["internal"], "Documents", "dst(*.txt"))
+	matches, _ := filepath.Glob(filepath.Join(p.MockRoot("internal"), "Documents", "dst(*.txt"))
 	if len(matches) == 0 {
 		t.Fatalf("keep_both did not create a copy")
 	}
@@ -458,7 +459,7 @@ func TestTransferConflictSkipReplaceKeepBothAndAsk(t *testing.T) {
 	}
 	// resolve by switching to replace via retry after setting strategy through a fresh job is not exposed;
 	// assert the file was not overwritten
-	if b, _ := os.ReadFile(filepath.Join(p.roots["internal"], "Documents/dst.txt")); string(b) != "new" {
+	if b, _ := os.ReadFile(filepath.Join(p.MockRoot("internal"), "Documents/dst.txt")); string(b) != "new" {
 		t.Fatalf("ask overwrote unexpectedly: %q", b)
 	}
 }
@@ -466,8 +467,8 @@ func TestTransferConflictSkipReplaceKeepBothAndAsk(t *testing.T) {
 func TestTransferPauseResumeCancelAndRecovery(t *testing.T) {
 	s, p, _ := newTestServer(t)
 	big := bytes.Repeat([]byte("z"), 8<<20) // 8MB, multi-chunk
-	writeFile(t, p.roots["internal"], "Documents/big.bin", big)
-	writeFile(t, p.roots["internal"], "Documents/second.bin", big)
+	writeFile(t, p.MockRoot("internal"), "Documents/big.bin", big)
+	writeFile(t, p.MockRoot("internal"), "Documents/second.bin", big)
 	code, body := doJSON(t, s, http.MethodPost, "/api/transfers", map[string]any{
 		"id": "job-pause", "type": "copy", "storage_id": "internal", "conflict_strategy": "replace",
 		"items": []map[string]any{{"src": "Documents/big.bin", "dst": "Documents/copy1.bin"}},
@@ -497,7 +498,7 @@ func TestTransferPauseResumeCancelAndRecovery(t *testing.T) {
 		doJSON(t, s, http.MethodPost, "/api/transfers/job-pause/resume", nil)
 		waitJob(t, s, "job-pause", func(m map[string]any) bool { return m["status"] == "completed" }, 5*time.Second)
 	}
-	if fi, e := os.Stat(filepath.Join(p.roots["internal"], "Documents/copy1.bin")); e != nil || fi.Size() != int64(len(big)) {
+	if fi, e := os.Stat(filepath.Join(p.MockRoot("internal"), "Documents/copy1.bin")); e != nil || fi.Size() != int64(len(big)) {
 		t.Fatalf("paused copy incomplete: %v size=%d", e, fi.Size())
 	}
 	_ = big
@@ -543,9 +544,9 @@ func statusOf(body map[string]any, id string) string {
 
 func TestNoPathLeakAcrossEndpoints(t *testing.T) {
 	s, p, base := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/a.txt", []byte("hello"))
+	writeFile(t, p.MockRoot("internal"), "Documents/a.txt", []byte("hello"))
 	_ = base
-	writeFile(t, p.roots["internal"], "Books/b.epub", []byte("book"))
+	writeFile(t, p.MockRoot("internal"), "Books/b.epub", []byte("book"))
 	paths := []string{
 		"/api/health", "/api/storage", "/api/storage/internal", "/api/storage/internal/usage",
 		"/api/files?storage_id=internal&path=Documents", "/api/files?storage_id=internal&q=a",
@@ -560,7 +561,7 @@ func TestNoPathLeakAcrossEndpoints(t *testing.T) {
 		mu.Lock()
 		body := w.Body.String()
 		mu.Unlock()
-		if strings.Contains(body, "/tmp/") || strings.Contains(body, p.roots["internal"]) || strings.Contains(body, "pocket-files-mock") {
+		if strings.Contains(body, "/tmp/") || strings.Contains(body, p.MockRoot("internal")) || strings.Contains(body, "pocket-files-mock") {
 			t.Errorf("path leak at %s: %s", path, body)
 		}
 		if strings.Contains(body, "\"Root\"") || strings.Contains(body, "\"root\"") {
@@ -571,10 +572,10 @@ func TestNoPathLeakAcrossEndpoints(t *testing.T) {
 	for _, path := range []string{"/api/files/metadata/internal:Documents/a.txt", "/api/files/preview/internal:Documents/a.txt"} {
 		w := doRaw(t, s, http.MethodGet, path, nil)
 		body := w.Body.String()
-		if strings.Contains(body, p.roots["internal"]) {
+		if strings.Contains(body, p.MockRoot("internal")) {
 			t.Errorf("path leak at %s", path)
 		}
-		if strings.Contains(w.Header().Get("Content-Type"), p.roots["internal"]) {
+		if strings.Contains(w.Header().Get("Content-Type"), p.MockRoot("internal")) {
 			t.Errorf("header leak at %s", path)
 		}
 	}
@@ -583,7 +584,7 @@ func TestNoPathLeakAcrossEndpoints(t *testing.T) {
 	if code != 200 {
 		t.Fatalf("op copy %d", code)
 	}
-	if js, _ := json.Marshal(body); strings.Contains(string(js), p.roots["internal"]) {
+	if js, _ := json.Marshal(body); strings.Contains(string(js), p.MockRoot("internal")) {
 		t.Errorf("operation leaked path")
 	}
 }
@@ -592,15 +593,15 @@ var _ = fmt.Sprintf
 
 func TestFileRenameContract(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/old.txt", []byte("payload"))
+	writeFile(t, p.MockRoot("internal"), "Documents/old.txt", []byte("payload"))
 	code, body := doJSON(t, s, http.MethodPut, "/api/files/internal%3ADocuments%2Fold.txt/rename", map[string]any{"name": "new.txt"})
 	if code != 200 {
 		t.Fatalf("rename status %d %v", code, body)
 	}
-	if _, err := os.Stat(filepath.Join(p.roots["internal"], "Documents", "new.txt")); err != nil {
+	if _, err := os.Stat(filepath.Join(p.MockRoot("internal"), "Documents", "new.txt")); err != nil {
 		t.Fatalf("renamed file missing: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(p.roots["internal"], "Documents", "old.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(p.MockRoot("internal"), "Documents", "old.txt")); !os.IsNotExist(err) {
 		t.Fatalf("old name still present: %v", err)
 	}
 	for _, bad := range []string{"../escape.txt", "a/b.txt", ""} {
@@ -613,10 +614,10 @@ func TestFileRenameContract(t *testing.T) {
 
 func TestSearchDateFilters(t *testing.T) {
 	s, p, _ := newTestServer(t)
-	writeFile(t, p.roots["internal"], "Documents/old.txt", []byte("old"))
-	writeFile(t, p.roots["internal"], "Documents/new.txt", []byte("new"))
+	writeFile(t, p.MockRoot("internal"), "Documents/old.txt", []byte("old"))
+	writeFile(t, p.MockRoot("internal"), "Documents/new.txt", []byte("new"))
 	oldTime := time.Date(2024, 1, 5, 12, 0, 0, 0, time.UTC)
-	if err := os.Chtimes(filepath.Join(p.roots["internal"], "Documents", "old.txt"), oldTime, oldTime); err != nil {
+	if err := os.Chtimes(filepath.Join(p.MockRoot("internal"), "Documents", "old.txt"), oldTime, oldTime); err != nil {
 		t.Fatal(err)
 	}
 

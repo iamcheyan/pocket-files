@@ -15,7 +15,7 @@ func TestMockVolumesAndGeneratedExamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(filepath.Dir(p.roots["internal"]))
+	defer os.RemoveAll(filepath.Dir(p.MockRoot("internal")))
 	devices, err := p.Discover(t.Context())
 	if err != nil || len(devices) != 4 {
 		t.Fatalf("devices=%d err=%v", len(devices), err)
@@ -35,49 +35,6 @@ func TestMockVolumesAndGeneratedExamples(t *testing.T) {
 		if e != nil || len(items) < 6 {
 			t.Fatalf("%s examples: %d %v", id, len(items), e)
 		}
-	}
-}
-func TestSandboxRejectsTraversalAndSymlinkEscape(t *testing.T) {
-	root := t.TempDir()
-	outside := t.TempDir()
-	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
-		t.Fatal(err)
-	}
-	s := sandbox{map[string]string{"x": root}}
-	for _, rel := range []string{"../outside", "escape/file"} {
-		if _, err := s.resolve("x", rel, true); err == nil {
-			t.Errorf("accepted unsafe path %q", rel)
-		}
-	}
-	if _, err := s.resolve("x", "safe/new", true); err != nil {
-		t.Fatalf("safe destination rejected: %v", err)
-	}
-}
-func TestMockCreateRenameCopyMoveDelete(t *testing.T) {
-	p, err := newMockProvider()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(filepath.Dir(p.roots["internal"]))
-	ctx := t.Context()
-	if err = p.CreateDir(ctx, "internal", "Documents/Test"); err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(filepath.Join(p.roots["internal"], "Documents/Test/a.txt"), []byte("hello"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err = p.Copy(ctx, "internal", "Documents/Test/a.txt", "Documents/Test/copy.txt"); err != nil {
-		t.Fatal(err)
-	}
-	if err = p.Move(ctx, "internal", "Documents/Test/copy.txt", "Documents/Test/moved.txt"); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(filepath.Join(p.roots["internal"], "Documents/Test/moved.txt"))
-	if err != nil || string(data) != "hello" {
-		t.Fatalf("copy content %q err %v", data, err)
-	}
-	if err = p.Delete(ctx, "internal", "Documents/Test/moved.txt"); err != nil {
-		t.Fatal(err)
 	}
 }
 func TestSQLiteSchemaStartup(t *testing.T) {
@@ -110,7 +67,7 @@ func TestHealthStorageBrowseAndUnavailableDownloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(filepath.Dir(p.roots["internal"]))
+	defer os.RemoveAll(filepath.Dir(p.MockRoot("internal")))
 	db, err := openDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +91,7 @@ func TestHealthStorageBrowseAndUnavailableDownloads(t *testing.T) {
 	if w.Code != 201 {
 		t.Fatalf("create folder status=%d body=%s", w.Code, w.Body.String())
 	}
-	if _, err = os.Stat(filepath.Join(p.roots["internal"], "NewFolder")); err != nil {
+	if _, err = os.Stat(filepath.Join(p.MockRoot("internal"), "NewFolder")); err != nil {
 		t.Fatal(err)
 	}
 }
