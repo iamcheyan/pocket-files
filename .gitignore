@@ -10,3 +10,6 @@ apps/pocket-files/backend/filesd/filesd
 
 # TypeScript incremental build info
 *.tsbuildinfo
+*.db-wal
+*.db-shm
+*.db-journal
