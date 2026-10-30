@@ -48,22 +48,6 @@
     "mock": true
   },
   {
-    "file": "docs/screenshots/copy-progress-1280x720.png",
-    "width": 1280,
-    "height": 720,
-    "theme": "system",
-    "profile": "desktop",
-    "mock": true
-  },
-  {
-    "file": "docs/screenshots/copy-progress-paused-1280x720.png",
-    "width": 1280,
-    "height": 720,
-    "theme": "system",
-    "profile": "desktop",
-    "mock": true
-  },
-  {
     "file": "docs/screenshots/search-1280x720.png",
     "width": 1280,
     "height": 720,
@@ -89,6 +73,22 @@
   },
   {
     "file": "docs/screenshots/settings-1280x720.png",
+    "width": 1280,
+    "height": 720,
+    "theme": "system",
+    "profile": "desktop",
+    "mock": true
+  },
+  {
+    "file": "docs/screenshots/copy-progress-1280x720.png",
+    "width": 1280,
+    "height": 720,
+    "theme": "system",
+    "profile": "desktop",
+    "mock": true
+  },
+  {
+    "file": "docs/screenshots/copy-progress-paused-1280x720.png",
     "width": 1280,
     "height": 720,
     "theme": "system",
