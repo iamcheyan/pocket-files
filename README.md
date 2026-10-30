@@ -1,5 +1,12 @@
 # Pocket Files
 
+
+> **PocketJS port (product target):** `apps/pocket-files/pocket/` is the
+> native PocketJS program (Solid TSX → `.pocket` → `pocket-linux-kms`). The
+> `frontend/` tree remains the frozen React design reference and is not
+> extended. Frames: `docs/pocket/`; verification:
+> `apps/pocket-files/POCKETJS-VERIFICATION.md`.
+
 PJOS storage API and file manager: React/Vite UI → Go `filesd` REST API →
 provider-backed storage → SQLite (`modernc.org/sqlite`). Not Electron; the browser
 never reads the filesystem, mounts devices or touches SQLite.
