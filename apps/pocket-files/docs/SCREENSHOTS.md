@@ -42,13 +42,13 @@ a misleading name.
 | `tf-b-1280x720.png` | 1280×720 | light / desktop | TF-B root | `8e16a06d2f78` |
 | `usb-1280x720.png` | 1280×720 | light / desktop | USB root | `daf31e74a829` |
 | `file-browser-1280x720.png` | 1280×720 | light / desktop | Internal/Documents | `c6fee2394c70` |
-| `preview-image-1280x720.png` | 1280×720 | light / desktop | Image preview (backend stream) | `f4976175e661` |
-| `search-1280x720.png` | 1280×720 | light / desktop | Search "Welcome" results | `06cb5c435136` |
+| `preview-image-1280x720.png` | 1280×720 | light / desktop | Image preview (backend stream) | `22b253eb33d8` |
+| `search-1280x720.png` | 1280×720 | light / desktop | Search "Welcome" results | `ce4523d3a84b` |
 | `favorites-1280x720.png` | 1280×720 | light / desktop | Favorites | `e8071338b0e2` |
-| `recents-1280x720.png` | 1280×720 | light / desktop | Recents | `ba71d4dc2660` |
+| `recents-1280x720.png` | 1280×720 | light / desktop | Recents | `5fb754e3cb44` |
 | `settings-1280x720.png` | 1280×720 | light / desktop | Settings: theme, language, profile, density | `5e29a7f53d84` |
-| `copy-progress-1280x720.png` | 1280×720 | light / desktop | Transfers with live queue | `69bcab85649b` |
-| `copy-progress-paused-1280x720.png` | 1280×720 | light / desktop | Transfers, paused job | `912332a84716` |
+| `copy-progress-1280x720.png` | 1280×720 | light / desktop | Transfers with live queue | `dfacfb5e42eb` |
+| `copy-progress-paused-1280x720.png` | 1280×720 | light / desktop | Transfers, paused job | `0dda97b01ea3` |
 | `overview-dark-1280x720.png` | 1280×720 | dark / desktop | Storage Overview | `676fd0f996d3` |
 | `overview-oled-1280x720.png` | 1280×720 | OLED (#000) / desktop | Storage Overview | `adc60d09aaa2` |
 | `overview-light-1280x720.png` | 1280×720 | light / desktop | Storage Overview | `dc67966aeafb` |
