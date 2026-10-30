@@ -138,3 +138,57 @@ func TestHealthStorageBrowseAndUnavailableDownloads(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMigrationsAreVersionedAndIdempotent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "migrate.db")
+	db, err := openDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var version int
+	if err = db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != schemaVersion {
+		t.Fatalf("schema version = %d, want %d", version, schemaVersion)
+	}
+	var indexes int
+	if err = db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'`).Scan(&indexes); err != nil {
+		t.Fatal(err)
+	}
+	if indexes < 5 {
+		t.Fatalf("expected created indexes, found %d", indexes)
+	}
+	db.Close()
+
+	// Re-opening must not duplicate version rows or fail on existing indexes.
+	db, err = openDB(path)
+	if err != nil {
+		t.Fatalf("reopen failed: %v", err)
+	}
+	defer db.Close()
+	var rows int
+	if err = db.QueryRow(`SELECT COUNT(*) FROM schema_version`).Scan(&rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows != schemaVersion {
+		t.Fatalf("schema_version rows = %d, want %d", rows, schemaVersion)
+	}
+	if err = db.QueryRow(`SELECT MAX(version) FROM schema_version`).Scan(&version); err != nil || version != schemaVersion {
+		t.Fatalf("version after reopen = %d (%v)", version, err)
+	}
+}
+
+func TestMigrationRefusesNewerDatabase(t *testing.T) {
+	db, err := openDB(filepath.Join(t.TempDir(), "future.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(`INSERT INTO schema_version(version) VALUES(?)`, schemaVersion+5); err != nil {
+		t.Fatal(err)
+	}
+	if err = migrate(db); err == nil {
+		t.Fatalf("expected refusal for a newer schema version")
+	}
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	_ "modernc.org/sqlite"
 	"net/http"
@@ -215,8 +216,63 @@ func openDB(path string) (*sql.DB, error) {
 		}
 	}
 	db.SetMaxOpenConns(1)
+	if e = migrate(db); e != nil {
+		db.Close()
+		return nil, e
+	}
 	return db, nil
 }
+
+// schemaVersion is bumped whenever a migration is added. Migrations are applied
+// in order inside a transaction and recorded in schema_version, so a partially
+// initialized database upgrades safely and a newer database is refused.
+const schemaVersion = 2
+
+func migrate(db *sql.DB) error {
+	var current int
+	if err := db.QueryRow(`SELECT COALESCE(MAX(version),0) FROM schema_version`).Scan(&current); err != nil {
+		return err
+	}
+	if current > schemaVersion {
+		return fmt.Errorf("database schema version %d is newer than supported %d", current, schemaVersion)
+	}
+	migrations := map[int][]string{
+		1: {
+			`CREATE INDEX IF NOT EXISTS idx_favorites_storage ON favorites(storage_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_recents_accessed ON recent_files(accessed_at DESC)`,
+			`CREATE INDEX IF NOT EXISTS idx_tags_storage_uri ON file_tags(storage_id, uri)`,
+		},
+		2: {
+			`CREATE INDEX IF NOT EXISTS idx_transfer_jobs_updated ON transfer_jobs(updated_at DESC)`,
+			`CREATE INDEX IF NOT EXISTS idx_transfer_items_job ON transfer_items(job_id)`,
+		},
+	}
+	for version := current + 1; version <= schemaVersion; version++ {
+		statements, ok := migrations[version]
+		if !ok {
+			return fmt.Errorf("missing migration for schema version %d", version)
+		}
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
+		for _, statement := range statements {
+			if _, err = tx.Exec(statement); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("migration %d: %w", version, err)
+			}
+		}
+		if _, err = tx.Exec(`INSERT INTO schema_version(version) VALUES(?)`, version); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("migration %d: %w", version, err)
+		}
+		if err = tx.Commit(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 	mock, e := newMockProvider()
 	if e != nil {

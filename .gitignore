@@ -7,3 +7,6 @@ dist/
 
 # Go build output
 apps/pocket-files/backend/filesd/filesd
+
+# TypeScript incremental build info
+*.tsbuildinfo
