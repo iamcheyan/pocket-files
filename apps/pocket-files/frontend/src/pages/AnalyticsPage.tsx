@@ -2,6 +2,7 @@
 // backend actually returns (category_counts, largest files/directories, usage).
 // Unavailable state instead of invented statistics.
 
+import { useEffect } from 'react';
 import { BarChart3 } from 'lucide-react';
 import { api } from '../api';
 import { EmptyState, LoadingState, UnavailableState } from '../components/ui';
@@ -18,6 +19,15 @@ interface AnalyticsPageProps {
 export function AnalyticsPage({ t, storageId, storageName }: AnalyticsPageProps) {
   const analytics = useApiResource(() => api.analytics(storageId), [storageId]);
   const data = analytics.data;
+  const pending = data?.backgrounded === true;
+
+  // A large tree answers 202 with progress; poll until the backend has the full
+  // result instead of showing empty statistics.
+  useEffect(() => {
+    if (!pending) return;
+    const timer = window.setTimeout(() => analytics.reload(), 700);
+    return () => window.clearTimeout(timer);
+  }, [pending, analytics]);
 
   let body;
   if (analytics.loading && !analytics.data) {
@@ -46,6 +56,12 @@ export function AnalyticsPage({ t, storageId, storageName }: AnalyticsPageProps)
             <strong>{formatBytes(data.total)}</strong>
           </div>
         </div>
+
+        {pending && (
+          <div className="inline-notice">
+            {t('analyticsScanning', { n: Math.round((data.progress ?? 0) * 100) })}
+          </div>
+        )}
 
         <div className="settings-card">
           <h2>{t('analyticsByKind')}</h2>

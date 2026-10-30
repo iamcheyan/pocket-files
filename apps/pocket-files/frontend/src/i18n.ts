@@ -200,6 +200,7 @@ export interface Strings {
   // Analytics
   analyticsTitle: string;
   analyticsUnavailable: string;
+  analyticsScanning: string;
   analyticsSummary: string;
   analyticsByKind: string;
   analyticsByExtension: string;
@@ -419,6 +420,7 @@ export const en: Strings = {
 
   analyticsTitle: 'Storage Analytics',
   analyticsUnavailable: 'Analytics unavailable',
+  analyticsScanning: 'Scanning storage… {n}% complete. Results update automatically.',
   analyticsSummary: 'Summary',
   analyticsByKind: 'By kind',
   analyticsByExtension: 'By extension',
@@ -637,6 +639,7 @@ export const zh: Strings = {
 
   analyticsTitle: '存储分析',
   analyticsUnavailable: '分析不可用',
+  analyticsScanning: '正在扫描存储…已完成 {n}%。结果会自动更新。',
   analyticsSummary: '概览',
   analyticsByKind: '按类型',
   analyticsByExtension: '按扩展名',
@@ -855,6 +858,7 @@ export const ja: Strings = {
 
   analyticsTitle: 'ストレージ分析',
   analyticsUnavailable: '分析を利用できません',
+  analyticsScanning: 'ストレージをスキャン中… {n}% 完了。結果は自動更新されます。',
   analyticsSummary: '概要',
   analyticsByKind: '種類別',
   analyticsByExtension: '拡張子別',
