@@ -1,8 +1,8 @@
 # Verification — pocket-files @ 2026-10-31
 
 - Verdict: PASS
-- Commit: `__COMMIT__` (fixes + screenshots; this document is the following commit)
-- Remote: `__REMOTE__`
+- Commit: `80efb5cfc97e25f5cc2e5edf12d58f358d18640d` (fixes + screenshots; this document is the following commit)
+- Remote: `80efb5cfc97e25f5cc2e5edf12d58f358d18640d`
 - Runtime: `filesd` on `127.0.0.1:8787` with `POCKET_FILES_MOCK_BIG=1` + fresh temp DB, Vite dev server `127.0.0.1:5180`; `make build` production bundle
 - Toolchain: go 1.26.0, bun 1.4.4, node v22.23.3, Chrome 155.0.8059.84
 
