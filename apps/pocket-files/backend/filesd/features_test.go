@@ -589,3 +589,24 @@ func TestNoPathLeakAcrossEndpoints(t *testing.T) {
 }
 
 var _ = fmt.Sprintf
+
+func TestFileRenameContract(t *testing.T) {
+	s, p, _ := newTestServer(t)
+	writeFile(t, p.roots["internal"], "Documents/old.txt", []byte("payload"))
+	code, body := doJSON(t, s, http.MethodPut, "/api/files/internal%3ADocuments%2Fold.txt/rename", map[string]any{"name": "new.txt"})
+	if code != 200 {
+		t.Fatalf("rename status %d %v", code, body)
+	}
+	if _, err := os.Stat(filepath.Join(p.roots["internal"], "Documents", "new.txt")); err != nil {
+		t.Fatalf("renamed file missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(p.roots["internal"], "Documents", "old.txt")); !os.IsNotExist(err) {
+		t.Fatalf("old name still present: %v", err)
+	}
+	for _, bad := range []string{"../escape.txt", "a/b.txt", ""} {
+		code, _ = doJSON(t, s, http.MethodPut, "/api/files/internal%3ADocuments%2Fnew.txt/rename", map[string]any{"name": bad})
+		if code != 400 {
+			t.Errorf("rename %q should be rejected, got %d", bad, code)
+		}
+	}
+}

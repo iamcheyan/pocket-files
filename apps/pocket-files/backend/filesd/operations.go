@@ -133,17 +133,21 @@ func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleBulkOperation(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Action      string   `json:"action"`
-		StorageID   string   `json:"storage_id"`
-		Sources     []string `json:"sources"`
-		Destination string   `json:"destination"`
-		Confirm     bool     `json:"confirm"`
+		Action             string   `json:"action"`
+		StorageID          string   `json:"storage_id"`
+		Sources            []string `json:"sources"`
+		Destination        string   `json:"destination"`
+		DestinationStorage string   `json:"destination_storage"`
+		Confirm            bool     `json:"confirm"`
 	}
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		s.error(w, 400, "invalid_json", "invalid request")
 		return
 	}
 	req.Action = strings.ToLower(req.Action)
+	if req.DestinationStorage != "" && req.DestinationStorage == req.StorageID {
+		req.DestinationStorage = ""
+	}
 	if req.StorageID == "" {
 		s.error(w, 400, "invalid_request", "storage_id is required")
 		return
@@ -169,6 +173,26 @@ func (s *Server) handleBulkOperation(w http.ResponseWriter, r *http.Request) {
 			}
 			dir, base := resolveRelativeParent(req.Destination)
 			dst := strings.TrimSuffix(dir, "/") + "/" + base + "_" + srcName(src)
+			if req.DestinationStorage != "" {
+				// Cross-device copies run through the persistent transfer queue so
+				// progress, pause and crash recovery behave like any other job.
+				id, idErr := randID()
+				if idErr != nil {
+					s.error(w, 400, "operation_failed", "unable to queue transfer")
+					return
+				}
+				jobErr := s.be.tc.create(id, "copy", req.StorageID, conflictKeepBoth,
+					[]transferItem{{Src: src, Dst: dst, DstStorage: req.DestinationStorage}}, 0)
+				if jobErr != nil {
+					res = opResult{Status: "error", Action: "copy", StorageID: req.StorageID, Source: src, Error: jobErr.Error()}
+					break
+				}
+				if job, jobLookup := s.be.tc.get(id); jobLookup == nil {
+					go s.be.tc.start(job)
+				}
+				res = opResult{Status: "queued", Action: "copy", StorageID: req.StorageID, Source: src, Destination: dst}
+				break
+			}
 			if e := s.be.copyFile(req.StorageID, src, dst); e != nil {
 				res = opResult{Status: "error", Action: "copy", StorageID: req.StorageID, Source: src, Error: e.Error()}
 			} else {
@@ -354,6 +378,47 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	default:
 		s.error(w, 405, "method_not_allowed", "use GET or PUT")
 	}
+}
+
+// handleFileRename serves PUT /api/files/{id}/rename with {"name":"new-name"}.
+// It renames in place, keeping the entry inside the same sandboxed parent.
+func (s *Server) handleFileRename(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPut {
+		s.error(w, 405, "method_not_allowed", "use PUT")
+		return
+	}
+	sid, rel, err := s.be.splitID(id)
+	if err != nil {
+		s.error(w, 400, "invalid_id", err.Error())
+		return
+	}
+	var body struct {
+		Name string `json:"name"`
+	}
+	if json.NewDecoder(r.Body).Decode(&body) != nil || strings.TrimSpace(body.Name) == "" {
+		s.error(w, 400, "invalid_request", "name is required")
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	if strings.ContainsAny(name, "/\\") || name == "." || name == ".." {
+		s.error(w, 400, "invalid_name", "name must be a single path segment")
+		return
+	}
+	parent := ""
+	if idx := strings.LastIndex(rel, "/"); idx >= 0 {
+		parent = rel[:idx]
+	}
+	destination := name
+	if parent != "" {
+		destination = parent + "/" + name
+	}
+	if err = s.be.moveFile(sid, rel, destination); err != nil {
+		s.storageError(w, "operation_failed", err)
+		return
+	}
+	s.json(w, 200, map[string]any{
+		"status": "ok", "storage_id": sid, "source": rel, "destination": destination, "name": name,
+	})
 }
 
 func (s *Server) handleFileMetadata(w http.ResponseWriter, r *http.Request, id string) {

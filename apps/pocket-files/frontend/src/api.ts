@@ -14,7 +14,9 @@ import type {
   StorageDevice,
   StorageListResponse,
   TransferAction,
+  RenameResponse,
   TransferListResponse,
+  UndoRequest,
   UsageInfo,
   ViewResponse,
 } from './types';
@@ -135,6 +137,21 @@ export const api = {
 
   bulk(payload: BulkRequest): Promise<BulkResponse> {
     return request<BulkResponse>('/api/operations/bulk', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // File identifiers are "storage:path" and must be escaped as one segment.
+  rename(storageId: string, id: string, name: string): Promise<RenameResponse> {
+    return request<RenameResponse>(`/api/files/${encodeURIComponent(`${storageId}:${id}`)}/rename`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  undo(payload: UndoRequest): Promise<void> {
+    return request<void>('/api/operations/undo', {
       method: 'POST',
       body: JSON.stringify(payload),
     });

@@ -88,13 +88,24 @@ func (r *providerRouter) provider(id string) (Provider, error) {
 }
 
 func (r *providerRouter) Discover(ctx context.Context) ([]Device, error) {
+	// A provider may advertise several volumes (the mock provider serves four),
+	// and the same provider can own multiple IDs, so results are deduplicated by
+	// storage ID while preserving registry order. Unimplemented providers are
+	// capabilities, not devices: they must never look like attached storage.
+	seen := map[string]bool{}
 	out := make([]Device, 0, len(r.order))
 	for _, id := range r.order {
 		devices, err := r.byID[id].Discover(ctx)
 		if err != nil {
 			continue
 		}
-		out = append(out, devices...)
+		for _, device := range devices {
+			if seen[device.ID] || device.Status == "not_implemented" {
+				continue
+			}
+			seen[device.ID] = true
+			out = append(out, device)
+		}
 	}
 	return out, nil
 }
@@ -214,4 +225,10 @@ func (r *providerRouter) resolve(storageID, rel string, allowMissing bool) (stri
 
 func isNotImplemented(err error) bool {
 	return errors.Is(err, ErrNotImplemented)
+}
+
+// providerFor exposes the provider that owns a storage ID so handlers can call
+// lifecycle methods (mount/unmount) that are not part of the read/write surface.
+func (r *providerRouter) providerFor(id string) (Provider, error) {
+	return r.provider(id)
 }

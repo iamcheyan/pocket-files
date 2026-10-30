@@ -298,6 +298,7 @@ function App() {
               t={t}
               lang={prefs.lang}
               storageId={nav.storageId}
+              devices={(devices.data ?? []).map((device) => ({ id: device.id, name: device.name, status: device.status }))}
               storageName={currentDevice?.name ?? ''}
               path={nav.path}
               onPathChange={(path) => navigate({ path })}
@@ -340,11 +341,7 @@ function App() {
             />
           )}
           {nav.page === 'analytics' && (
-            <AnalyticsPage
-              t={t}
-              storageId={nav.storageId}
-              storageName={currentDevice?.name ?? ''}
-            />
+            <AnalyticsPage t={t} storageId={nav.storageId} storageName={currentDevice?.name ?? ''} />
           )}
           {nav.page === 'settings' && (
             <SettingsPage

@@ -99,6 +99,13 @@ export interface Strings {
   filesConfirmDeleteBody: string;
   filesConfirmDelete: string;
   filesOperationDone: string;
+  filesUndone: string;
+  filesRename: string;
+  filesRenamePrompt: string;
+  filesUndo: string;
+  filesUndoHint: string;
+  filesQueuedTransfer: string;
+  filesDestinationStorage: string;
   filesOperationFailed: string;
   filesUnavailable: string;
 
@@ -300,6 +307,13 @@ export const en: Strings = {
   filesConfirmDeleteBody: 'This will permanently delete {n} selected item(s). This cannot be undone.',
   filesConfirmDelete: 'Delete',
   filesOperationDone: 'Operation completed',
+  filesUndone: 'Deletion undone',
+  filesRename: 'Rename',
+  filesRenamePrompt: 'New name',
+  filesUndo: 'Undo',
+  filesUndoHint: 'Items were moved to Trash.',
+  filesQueuedTransfer: 'Copy queued — see Transfers for progress.',
+  filesDestinationStorage: 'Destination device',
   filesOperationFailed: 'Operation failed',
   filesUnavailable: 'Files unavailable',
 
@@ -493,6 +507,13 @@ export const zh: Strings = {
   filesConfirmDeleteBody: '这将永久删除选中的 {n} 个项目，且无法撤销。',
   filesConfirmDelete: '删除',
   filesOperationDone: '操作已完成',
+  filesUndone: '已撤销删除',
+  filesRename: '重命名',
+  filesRenamePrompt: '新名称',
+  filesUndo: '撤销',
+  filesUndoHint: '项目已移入回收站。',
+  filesQueuedTransfer: '已加入复制队列，可在“传输”中查看进度。',
+  filesDestinationStorage: '目标设备',
   filesOperationFailed: '操作失败',
   filesUnavailable: '文件不可用',
 
@@ -686,6 +707,13 @@ export const ja: Strings = {
   filesConfirmDeleteBody: '選択した {n} 個の項目を完全に削除します。元に戻せません。',
   filesConfirmDelete: '削除',
   filesOperationDone: '操作が完了しました',
+  filesUndone: '削除を元に戻しました',
+  filesRename: '名前を変更',
+  filesRenamePrompt: '新しい名前',
+  filesUndo: '元に戻す',
+  filesUndoHint: '項目をごみ箱に移動しました。',
+  filesQueuedTransfer: 'コピーをキューに追加しました。進捗は「転送」で確認できます。',
+  filesDestinationStorage: 'コピー先のデバイス',
   filesOperationFailed: '操作に失敗しました',
   filesUnavailable: 'ファイルを利用できません',
 

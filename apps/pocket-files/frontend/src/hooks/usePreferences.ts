@@ -8,7 +8,7 @@ import { LANGS, type Lang } from '../i18n';
 export type ThemePreference = 'system' | 'light' | 'dark' | 'oled';
 export type DeviceProfile = 'desktop' | 'handheld' | 'reader' | 'dap';
 export type ProfilePreference = 'auto' | DeviceProfile;
-export type DpiToken = 'low' | 'medium' | 'high';
+export type DpiToken = '1x' | '1.5x' | '2x' | '3x';
 
 export const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark', 'oled'];
 export const PROFILES: readonly ProfilePreference[] = [
@@ -54,11 +54,15 @@ export function detectProfile(width: number, height: number): DeviceProfile {
   return 'desktop';
 }
 
+// DPI tokens map to the four density scales Pocket devices ship with. The bucket
+// follows the reported device pixel ratio so 1x/1.5x/2x/3x panels each get their
+// own typography and row density.
 export function detectDpi(): DpiToken {
   const ratio = window.devicePixelRatio || 1;
-  if (ratio >= 1.75) return 'high';
-  if (ratio >= 1.25) return 'medium';
-  return 'low';
+  if (ratio >= 2.75) return '3x';
+  if (ratio >= 1.75) return '2x';
+  if (ratio >= 1.25) return '1.5x';
+  return '1x';
 }
 
 const THEME_COLORS: Record<Exclude<ThemePreference, 'system'>, string> = {

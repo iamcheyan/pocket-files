@@ -37,8 +37,6 @@ func (s *Server) storageItems(devices []Device) []storageDTO {
 		}
 		used := d.Used
 		if d.Mock {
-			// Mock volumes report the bytes of their generated samples against
-			// their declared nominal capacity, never the host disk's usage.
 			used = directoryUsage(d.Root)
 		}
 		out = append(out, storageDTO{ID: d.ID, Name: name, Kind: d.Kind, Status: d.Status, Mock: d.Mock, ReadOnly: d.ReadOnly, Total: d.Total, Used: used})
@@ -48,14 +46,10 @@ func (s *Server) storageItems(devices []Device) []storageDTO {
 func entryItems(entries []Entry) []map[string]any {
 	out := make([]map[string]any, 0, len(entries))
 	for _, e := range entries {
-		out = append(out, map[string]any{
-			"id": e.ID, "storage_id": e.StorageID, "name": e.Name, "parent": e.Parent, "kind": e.Kind,
-			"size": e.Size, "modified": e.Modified, "created": e.Created, "extension": e.Extension,
-		})
+		out = append(out, map[string]any{"id": e.ID, "storage_id": e.StorageID, "name": e.Name, "parent": e.Parent, "kind": e.Kind, "size": e.Size, "modified": e.Modified, "created": e.Created, "extension": e.Extension})
 	}
 	return out
 }
-
 func (s *Server) json(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -64,7 +58,6 @@ func (s *Server) json(w http.ResponseWriter, status int, v any) {
 func (s *Server) error(w http.ResponseWriter, status int, code, msg string) {
 	s.json(w, status, map[string]any{"error": map[string]string{"code": code, "message": msg}})
 }
-
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := strings.Trim(r.URL.Path, "/")
 	parts := strings.Split(path, "/")
@@ -113,29 +106,31 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "apps":
 			s.handleApps(w, r, parts)
 			return
+		case "providers":
+			s.handleCapabilities(w, r)
+			return
 		}
 	}
 	s.error(w, 404, "not_found", "endpoint not found")
 }
 
 func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request, parts []string) {
-	if len(parts) == 2 && r.Method == "GET" {
+	if len(parts) == 2 && r.Method == http.MethodGet {
 		id := r.URL.Query().Get("storage_id")
 		q := r.URL.Query().Get("q")
-		pathQ := r.URL.Query().Get("path")
 		var items []Entry
 		var err error
 		if q != "" {
 			items, err = s.p.Search(r.Context(), id, q)
 		} else {
-			items, err = s.p.Browse(r.Context(), id, pathQ)
+			items, err = s.p.Browse(r.Context(), id, r.URL.Query().Get("path"))
 		}
 		if err != nil {
 			s.storageError(w, "storage_error", err)
 			return
 		}
-		if q == "" && pathQ != "" {
-			_ = s.be.recordRecent(id, pathQ, "directory")
+		if q == "" && r.URL.Query().Get("path") != "" {
+			_ = s.be.recordRecent(id, r.URL.Query().Get("path"), "directory")
 		}
 		items = s.be.applyFileFilters(items, r.URL.Query())
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
@@ -158,157 +153,50 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request, parts []str
 		s.json(w, 200, map[string]any{"items": entryItems(items), "page": page, "limit": limit, "total": total})
 		return
 	}
-	// Canonical contract: GET /api/files/{id}/metadata and /api/files/{id}/preview,
-	// where {id} is the URL-escaped "storage:path" file identifier.
-	if len(parts) >= 4 && r.Method == "GET" && (parts[len(parts)-1] == "metadata" || parts[len(parts)-1] == "preview") {
-		action := parts[len(parts)-1]
-		raw := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/files/"), "/"+action)
-		if id, err := url.PathUnescape(raw); err == nil {
-			raw = id
-		}
-		if strings.Contains(raw, ":") {
-			if action == "metadata" {
-				s.handleFileMetadata(w, r, raw)
-			} else {
-				s.handleFilePreview(w, r, raw)
+	if action, id, ok := fileActionFromPath(r.URL.EscapedPath()); ok {
+		switch action {
+		case "metadata":
+			if r.Method == http.MethodGet {
+				s.handleFileMetadata(w, r, id)
+				return
 			}
-			return
+		case "preview":
+			if r.Method == http.MethodGet {
+				s.handleFilePreview(w, r, id)
+				return
+			}
+		case "rename":
+			if r.Method == http.MethodPut {
+				s.handleFileRename(w, r, id)
+				return
+			}
 		}
-	}
-	if len(parts) >= 4 && (parts[2] == "metadata" || parts[2] == "preview") && r.Method == "GET" {
-		raw := strings.TrimPrefix(r.URL.Path, "/api/files/"+parts[2]+"/")
-		id, err := url.PathUnescape(raw)
-		if err != nil {
-			id = raw
-		}
-		if parts[2] == "metadata" {
-			s.handleFileMetadata(w, r, id)
-		} else {
-			s.handleFilePreview(w, r, id)
-		}
-		return
 	}
 	s.error(w, 404, "not_found", "endpoint not found")
 }
 
 func (s *Server) handleStorage(w http.ResponseWriter, r *http.Request, parts []string) {
-	if len(parts) == 3 && parts[2] == "detected" && r.Method == "GET" {
+	if len(parts) == 3 && parts[2] == "detected" && r.Method == http.MethodGet {
 		s.handleDetectedStorage(w, r)
 		return
 	}
-	if len(parts) == 2 && r.Method == "GET" {
+	if len(parts) == 2 && r.Method == http.MethodGet {
 		d, _ := s.p.Discover(r.Context())
 		s.json(w, 200, map[string]any{"items": s.storageItems(d)})
 		return
 	}
-	if len(parts) == 4 && r.Method == "GET" && parts[3] == "usage" {
+	if len(parts) == 4 && r.Method == http.MethodGet && parts[3] == "usage" {
 		s.handleStorageUsage(w, r, parts[2])
 		return
 	}
-	if len(parts) == 4 && r.Method == "POST" && (parts[3] == "mount" || parts[3] == "unmount") {
-		s.error(w, 501, "not_implemented", "mock storage mount/unmount is not implemented")
+	if len(parts) == 4 && r.Method == http.MethodPost && (parts[3] == "mount" || parts[3] == "unmount") {
+		// Lifecycle operations stay explicitly unimplemented: nothing may mount
+		// or unmount a host volume on a user's behalf without confirmation.
+		s.error(w, http.StatusNotImplemented, "not_implemented", "storage lifecycle operations are not implemented")
 		return
 	}
 	if len(parts) == 3 {
 		s.handleStorageItem(w, r, parts[2])
-		return
-	}
-	s.error(w, 404, "not_found", "endpoint not found")
-}
-
-func (s *Server) handleStorageItem(w http.ResponseWriter, r *http.Request, id string) {
-	if r.Method == "GET" {
-		d, ok := s.be.getDevice(id)
-		if !ok {
-			s.error(w, 404, "storage_not_found", "unknown storage")
-			return
-		}
-		detail := map[string]any{
-			"id": d.ID, "name": d.Name, "kind": d.Kind, "status": d.Status, "mock": d.Mock,
-			"read_only": d.ReadOnly, "total": d.Total, "used": d.Used, "friendly_name": s.be.getFriendlyName(id),
-		}
-		s.json(w, 200, detail)
-		return
-	}
-	if r.Method == "PUT" {
-		var body struct {
-			FriendlyName string `json:"friendly_name"`
-		}
-		if json.NewDecoder(r.Body).Decode(&body) != nil {
-			s.error(w, 400, "invalid_json", "invalid request")
-			return
-		}
-		if e := s.be.updateFriendlyName(id, body.FriendlyName); e != nil {
-			s.storageError(w, "storage_error", e)
-			return
-		}
-		s.json(w, 200, map[string]any{"id": id, "friendly_name": body.FriendlyName})
-		return
-	}
-	if r.Method == "POST" {
-		action := strings.Trim(strings.TrimPrefix(r.URL.Path, "api/storage/"+id+"/"), "/")
-		if action == "mount" || action == "unmount" {
-			s.error(w, 501, "not_implemented", "mock storage mount/unmount is not implemented")
-			return
-		}
-	}
-	s.error(w, 404, "not_found", "endpoint not found")
-}
-
-func (s *Server) handleStorageUsage(w http.ResponseWriter, r *http.Request, id string) {
-	if r.Method != "GET" {
-		s.error(w, 405, "method_not_allowed", "use GET")
-		return
-	}
-	total, used, free, e := s.be.storageUsage(id)
-	if e != nil {
-		s.storageError(w, "storage_error", e)
-		return
-	}
-	d, _ := s.be.getDevice(id)
-	s.json(w, 200, map[string]any{"id": id, "mock": d.Mock, "total": total, "used": used, "free": free})
-}
-
-func (s *Server) handleFolders(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		s.error(w, 405, "method_not_allowed", "use POST")
-		return
-	}
-	var v struct {
-		StorageID string `json:"storage_id"`
-		Path      string `json:"path"`
-	}
-	if json.NewDecoder(r.Body).Decode(&v) != nil {
-		s.error(w, 400, "invalid_json", "invalid request")
-		return
-	}
-	if e := s.p.CreateDir(r.Context(), v.StorageID, v.Path); e != nil {
-		s.error(w, 400, "operation_failed", e.Error())
-		return
-	}
-	w.WriteHeader(201)
-}
-
-func (s *Server) handleViews(w http.ResponseWriter, r *http.Request, parts []string) {
-	if len(parts) == 3 && r.Method == "GET" {
-		items, err := s.be.getView(r.Context(), parts[2])
-		if err != nil {
-			s.error(w, 400, "view_error", err.Error())
-			return
-		}
-		s.json(w, 200, map[string]any{"view": parts[2], "items": items})
-		return
-	}
-	s.error(w, 501, "not_implemented", "virtual view is not available for this provider yet")
-}
-
-func (s *Server) handleApps(w http.ResponseWriter, r *http.Request, parts []string) {
-	if len(parts) == 2 && r.Method == "GET" {
-		s.json(w, 200, map[string]any{"status": "unavailable", "reason": "pj_app_registry_not_installed"})
-		return
-	}
-	if len(parts) >= 3 && parts[2] == "open" && r.Method == "GET" {
-		s.json(w, 200, map[string]any{"status": "unavailable"})
 		return
 	}
 	s.error(w, 404, "not_found", "endpoint not found")
@@ -319,32 +207,16 @@ func openDB(path string) (*sql.DB, error) {
 	if e != nil {
 		return nil, e
 	}
-	db.SetMaxOpenConns(1)
-	queries := []string{
-		`PRAGMA busy_timeout=5000`,
-		`PRAGMA journal_mode=WAL`,
-		`PRAGMA foreign_keys=ON`,
-		`CREATE TABLE IF NOT EXISTS schema_version(version INTEGER NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS storage_devices(id TEXT PRIMARY KEY,friendly_name TEXT NOT NULL,kind TEXT NOT NULL,status TEXT NOT NULL,mock INTEGER NOT NULL DEFAULT 0)`,
-		`CREATE TABLE IF NOT EXISTS directories(id TEXT PRIMARY KEY,storage_id TEXT NOT NULL,parent_id TEXT,name TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS favorites(id INTEGER PRIMARY KEY,storage_id TEXT NOT NULL,uri TEXT NOT NULL,UNIQUE(storage_id,uri))`,
-		`CREATE TABLE IF NOT EXISTS recent_files(id INTEGER PRIMARY KEY,storage_id TEXT NOT NULL,uri TEXT NOT NULL,kind TEXT NOT NULL,accessed_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS transfer_jobs(id TEXT PRIMARY KEY,type TEXT NOT NULL,storage_id TEXT NOT NULL,status TEXT NOT NULL,conflict_strategy TEXT NOT NULL DEFAULT 'skip',extra TEXT NOT NULL DEFAULT '{}',created_at TEXT NOT NULL,updated_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS transfer_items(job_id TEXT NOT NULL,item_index INTEGER NOT NULL,src TEXT NOT NULL,dst TEXT NOT NULL,state TEXT NOT NULL,error TEXT NOT NULL DEFAULT '',PRIMARY KEY(job_id,item_index))`,
-		`CREATE TABLE IF NOT EXISTS transfer_order(position INTEGER PRIMARY KEY,id TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS file_tags(id INTEGER PRIMARY KEY,storage_id TEXT NOT NULL,uri TEXT NOT NULL,tag TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS custom_locations(id INTEGER PRIMARY KEY,name TEXT NOT NULL,storage_id TEXT NOT NULL,uri TEXT NOT NULL)`,
-	}
+	queries := []string{`PRAGMA foreign_keys=ON`, `PRAGMA journal_mode=WAL`, `PRAGMA busy_timeout=5000`, `CREATE TABLE IF NOT EXISTS schema_version(version INTEGER NOT NULL)`, `CREATE TABLE IF NOT EXISTS storage_devices(id TEXT PRIMARY KEY,friendly_name TEXT NOT NULL,kind TEXT NOT NULL,status TEXT NOT NULL,mock INTEGER NOT NULL DEFAULT 0)`, `CREATE TABLE IF NOT EXISTS directories(id TEXT PRIMARY KEY,storage_id TEXT NOT NULL,parent_id TEXT,name TEXT NOT NULL)`, `CREATE TABLE IF NOT EXISTS favorites(id INTEGER PRIMARY KEY,storage_id TEXT NOT NULL,uri TEXT NOT NULL,UNIQUE(storage_id,uri))`, `CREATE TABLE IF NOT EXISTS recent_files(id INTEGER PRIMARY KEY,storage_id TEXT NOT NULL,uri TEXT NOT NULL,kind TEXT NOT NULL,accessed_at TEXT NOT NULL)`, `CREATE TABLE IF NOT EXISTS transfer_jobs(id TEXT PRIMARY KEY,type TEXT NOT NULL,storage_id TEXT NOT NULL,status TEXT NOT NULL,conflict_strategy TEXT NOT NULL,extra TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)`, `CREATE TABLE IF NOT EXISTS transfer_items(job_id TEXT NOT NULL,item_index INTEGER NOT NULL,src TEXT NOT NULL,dst TEXT NOT NULL,state TEXT NOT NULL,error TEXT NOT NULL DEFAULT '',PRIMARY KEY(job_id,item_index))`, `CREATE TABLE IF NOT EXISTS transfer_order(position INTEGER PRIMARY KEY,id TEXT NOT NULL)`, `CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)`, `CREATE TABLE IF NOT EXISTS file_tags(id INTEGER PRIMARY KEY,storage_id TEXT NOT NULL,uri TEXT NOT NULL,tag TEXT NOT NULL)`, `CREATE TABLE IF NOT EXISTS custom_locations(id INTEGER PRIMARY KEY,name TEXT NOT NULL,storage_id TEXT NOT NULL,uri TEXT NOT NULL)`}
 	for _, q := range queries {
 		if _, e = db.Exec(q); e != nil {
 			db.Close()
 			return nil, e
 		}
 	}
+	db.SetMaxOpenConns(1)
 	return db, nil
 }
-
 func main() {
 	mock, e := newMockProvider()
 	if e != nil {
@@ -371,7 +243,6 @@ func main() {
 		log.Fatal(e)
 	}
 }
-
 func env(k, d string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
@@ -379,4 +250,35 @@ func env(k, d string) string {
 	return d
 }
 
-func parts(p string) []string { return strings.Split(strings.Trim(p, "/"), "/") }
+// fileActionFromPath extracts the action and file identifier from both the
+// canonical route (/api/files/{id}/metadata) and the legacy route
+// (/api/files/metadata/{id}). The escaped path is used so an encoded ":" or "/"
+// inside the identifier is never split by net/http's path decoding.
+func fileActionFromPath(escapedPath string) (action, id string, ok bool) {
+	rest, found := strings.CutPrefix(escapedPath, "/api/files/")
+	if !found {
+		return "", "", false
+	}
+	for _, candidate := range []string{"metadata", "preview", "rename"} {
+		// Canonical form: {id}/{action}. Legacy form: {action}/{id}.
+		if trimmed, matched := strings.CutSuffix(rest, "/"+candidate); matched {
+			if decoded := decodeID(trimmed); decoded != "" {
+				return candidate, decoded, true
+			}
+		}
+		if trimmed, matched := strings.CutPrefix(rest, candidate+"/"); matched {
+			if decoded := decodeID(trimmed); decoded != "" {
+				return candidate, decoded, true
+			}
+		}
+	}
+	return "", "", false
+}
+
+func decodeID(raw string) string {
+	decoded, err := url.PathUnescape(raw)
+	if err != nil {
+		return raw
+	}
+	return decoded
+}

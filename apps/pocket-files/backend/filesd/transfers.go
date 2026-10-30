@@ -32,6 +32,9 @@ const (
 type transferItem struct {
 	Src string
 	Dst string
+	// DstStorage differs from the job's StorageID for cross-device transfers
+	// (for example Internal -> TF-A). An empty value means same-device.
+	DstStorage string
 }
 
 type transferJob struct {
@@ -313,11 +316,15 @@ func (tc *transferController) run(j *transferJob, stop chan struct{}) {
 		conflict := j.Conflict
 		src := j.Items[i].Src
 		dst := j.Items[i].Dst
+		dstStorage := j.Items[i].DstStorage
+		if dstStorage == "" {
+			dstStorage = storageID
+		}
 		j.progress[i].state = transferRunning
 		j.Status = transferRunning
 		j.mu.Unlock()
 		tc.persist(j)
-		conflictHit, err := tc.processItem(j, idx, typ, storageID, src, dst, conflict, stop, started)
+		conflictHit, err := tc.processItem(j, idx, typ, storageID, src, dstStorage, dst, conflict, stop, started)
 		j.mu.Lock()
 		if conflictHit {
 			j.Status = transferConflict
@@ -381,7 +388,7 @@ func (tc *transferController) gate(j *transferJob, stop chan struct{}, started t
 	}
 }
 
-func (tc *transferController) processItem(j *transferJob, idx int, kind, storageID, src, dst, conflict string, stop chan struct{}, started time.Time) (conflictHit bool, err error) {
+func (tc *transferController) processItem(j *transferJob, idx int, kind, storageID, src, dstStorage, dst, conflict string, stop chan struct{}, started time.Time) (conflictHit bool, err error) {
 	switch kind {
 	case "delete":
 		if _, e := tc.p.Trash(context.Background(), storageID, src); e != nil {
@@ -390,7 +397,7 @@ func (tc *transferController) processItem(j *transferJob, idx int, kind, storage
 		return false, nil
 	case "copy", "move":
 		exists := false
-		if _, e := os.Stat(dstResolved(tc.p, storageID, dst)); e == nil {
+		if _, e := os.Stat(dstResolved(tc.p, dstStorage, dst)); e == nil {
 			exists = true
 		}
 		if exists {
@@ -403,15 +410,15 @@ func (tc *transferController) processItem(j *transferJob, idx int, kind, storage
 			case conflictAsk:
 				return true, nil
 			case conflictKeepBoth:
-				dst = uniqueName(tc.p, storageID, dst)
+				dst = uniqueName(tc.p, dstStorage, dst)
 			case conflictReplace:
-				full, _ := tryResolve(tc.p, storageID, dst)
+				full, _ := tryResolve(tc.p, dstStorage, dst)
 				if full != "" {
 					_ = os.RemoveAll(full)
 				}
 			}
 		}
-		if e := copyStreamProgress(tc.p, j, storageID, src, dst, stop, started); e != nil {
+		if e := copyStreamProgress(tc.p, j, storageID, src, dstStorage, dst, stop, started); e != nil {
 			if e == errCancelled {
 				return false, errCancelled
 			}
@@ -461,7 +468,7 @@ func uniqueName(p storageBackend, id, rel string) string {
 
 var errCancelled = fmt.Errorf("cancelled")
 
-func copyStreamProgress(p storageBackend, j *transferJob, id, src, dst string, stop chan struct{}, started time.Time) error {
+func copyStreamProgress(p storageBackend, j *transferJob, id, src, dstStorage, dst string, stop chan struct{}, started time.Time) error {
 	a, e := p.resolve(id, src, false)
 	if e != nil {
 		return fmt.Errorf("read %q: not found", src)
@@ -471,7 +478,7 @@ func copyStreamProgress(p storageBackend, j *transferJob, id, src, dst string, s
 		return fmt.Errorf("read %q: io error", src)
 	}
 	defer in.Close()
-	b, err := p.resolve(id, dst, true)
+	b, err := p.resolve(dstStorage, dst, true)
 	if err != nil {
 		return fmt.Errorf("write %q: io error", dst)
 	}
@@ -576,12 +583,13 @@ func (s *Server) handleTransfers(w http.ResponseWriter, r *http.Request, parts [
 	}
 	if len(parts) == 2 && r.Method == "POST" {
 		var req struct {
-			ID               string `json:"id"`
-			Type             string `json:"type"`
-			StorageID        string `json:"storage_id"`
-			ConflictStrategy string `json:"conflict_strategy"`
-			Priority         int    `json:"priority"`
-			Items            []struct {
+			ID                 string `json:"id"`
+			Type               string `json:"type"`
+			StorageID          string `json:"storage_id"`
+			ConflictStrategy   string `json:"conflict_strategy"`
+			Priority           int    `json:"priority"`
+			DestinationStorage string `json:"destination_storage"`
+			Items              []struct {
 				Src string `json:"src"`
 				Dst string `json:"dst"`
 			} `json:"items"`
@@ -607,7 +615,7 @@ func (s *Server) handleTransfers(w http.ResponseWriter, r *http.Request, parts [
 				s.error(w, 400, "invalid_request", "src is required")
 				return
 			}
-			items = append(items, transferItem{Src: it.Src, Dst: it.Dst})
+			items = append(items, transferItem{Src: it.Src, Dst: it.Dst, DstStorage: req.DestinationStorage})
 		}
 		if e := s.be.tc.create(req.ID, req.Type, req.StorageID, req.ConflictStrategy, items, req.Priority); e != nil {
 			s.error(w, 400, "invalid_request", e.Error())
@@ -733,7 +741,7 @@ func transferDTO(j *transferJob) map[string]any {
 			st = j.progress[i].state
 			errx = j.progress[i].err
 		}
-		states = append(states, map[string]any{"src": it.Src, "dst": it.Dst, "state": st, "error": errx})
+		states = append(states, map[string]any{"src": it.Src, "dst": it.Dst, "dst_storage": it.DstStorage, "state": st, "error": errx})
 	}
 	return map[string]any{
 		"id": j.ID, "type": j.Type, "storage_id": j.StorageID, "status": j.Status, "conflict_strategy": j.Conflict,

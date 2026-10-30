@@ -640,3 +640,14 @@ func resolveRelativeParent(rel string) (string, string) {
 	return dir, filepath.Base(rel)
 }
 func (b *Backend) recoverTransfers() { b.tc.recover() }
+
+// providerFor resolves a provider through the router when one is configured.
+func (b *Backend) providerFor(id string) (Provider, error) {
+	if router, ok := b.p.(*providerRouter); ok {
+		return router.providerFor(id)
+	}
+	if mock, ok := b.p.(*MockProvider); ok {
+		return mock, nil
+	}
+	return nil, ErrNotImplemented
+}

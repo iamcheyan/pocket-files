@@ -1779,34 +1779,59 @@ svg {
 /* ------------------------------------------------------------------ *
  * DPI buckets
  * ------------------------------------------------------------------ */
-[data-dpi='high'] {
-  --font-base: 13px;
-  --font-tiny: 10px;
-}
-
-[data-dpi='high'] .file-row,
-[data-dpi='high'] .nav-item {
-  border-radius: 7px;
-}
-
-[data-dpi='low'] {
+[data-dpi='1x'] {
   --font-base: 14px;
   --font-small: 12px;
   --font-tiny: 11px;
   --row-h: 52px;
+  --dpi-scale: 1;
 }
 
-[data-dpi='low'] .sidebar {
+[data-dpi='1x'] .sidebar {
   width: 256px;
 }
 
-[data-dpi='low'] .content {
+[data-dpi='1x'] .content {
   margin-left: 256px;
   width: calc(100% - 256px);
 }
 
-[data-dpi='low'] .nav-item {
+[data-dpi='1x'] .nav-item {
   font-size: 14px;
+}
+
+[data-dpi='1.5x'] {
+  --dpi-scale: 1.5;
+}
+
+[data-dpi='2x'] {
+  --font-base: 13px;
+  --font-tiny: 10px;
+  --dpi-scale: 2;
+}
+
+[data-dpi='2x'] .file-row,
+[data-dpi='2x'] .nav-item {
+  border-radius: 7px;
+}
+
+[data-dpi='3x'] {
+  --font-base: 12px;
+  --font-small: 11px;
+  --font-tiny: 10px;
+  --row-h: 44px;
+  --dpi-scale: 3;
+}
+
+[data-dpi='3x'] .file-row,
+[data-dpi='3x'] .nav-item {
+  border-radius: 6px;
+}
+
+[data-dpi='3x'] .icon-btn svg,
+[data-dpi='3x'] .nav-item svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* ------------------------------------------------------------------ *
@@ -2079,4 +2104,41 @@ svg {
 
 [data-profile='dap'] .device-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Inline rename + undo affordances */
+.rename-input {
+  height: 24px;
+  min-width: 110px;
+  border: 1px solid var(--border-strong, #c9c6fa);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--font-tiny);
+  padding: 0 6px;
+}
+
+.rename-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.undo-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Cross-device bulk destination selector */
+.bulk-destination select {
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--font-tiny);
+  padding: 0 4px;
 }

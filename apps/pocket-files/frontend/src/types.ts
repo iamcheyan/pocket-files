@@ -60,6 +60,7 @@ export type TransferStatus =
 export interface TransferItemState {
   src: string;
   dst: string;
+  dst_storage?: string;
   state: string;
   error?: string;
 }
@@ -149,7 +150,23 @@ export interface BulkRequest {
   storage_id: string;
   sources: string[];
   destination?: string;
+  /** Set to copy across devices; cross-device copies are queued as transfers. */
+  destination_storage?: string;
   confirm?: boolean;
+}
+
+export interface RenameResponse {
+  status: string;
+  storage_id: string;
+  source: string;
+  destination: string;
+  name: string;
+}
+
+export interface UndoRequest {
+  storage_id: string;
+  source: string;
+  trash_path: string;
 }
 
 export interface BulkResponse {

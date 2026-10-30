@@ -12,6 +12,7 @@ import {
   Folder,
   FolderPlus,
   Move,
+  Pencil,
   SquareCheck,
   Star,
   Trash,
@@ -30,21 +31,38 @@ interface FilesPageProps {
   lang: string;
   storageId: string;
   storageName: string;
+  devices: { id: string; name: string; status: string }[];
   path: string;
   onPathChange: (path: string) => void;
 }
 
-export function FilesPage({ t, lang, storageId, storageName, path, onPathChange }: FilesPageProps) {
+export function FilesPage({
+  t,
+  lang,
+  storageId,
+  storageName,
+  devices,
+  path,
+  onPathChange,
+}: FilesPageProps) {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [typeFilter, setTypeFilter] = useState<FileTypeFilter>('all');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [destination, setDestination] = useState('');
+  // Cross-device destinations go through the persistent transfer queue.
+  const [destinationStorage, setDestinationStorage] = useState('');
   const [pendingDelete, setPendingDelete] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Last destructive action, kept so the user can undo a delete immediately.
+  const [undoBatch, setUndoBatch] = useState<{
+    storageId: string;
+    entries: { source: string; trashPath: string }[];
+  } | null>(null);
+  const [renaming, setRenaming] = useState<FileEntry | null>(null);
 
   useEffect(() => {
     setPage(0);
@@ -67,6 +85,15 @@ export function FilesPage({ t, lang, storageId, storageName, path, onPathChange 
   );
 
   const rows = useMemo(() => files.data?.items ?? [], [files.data]);
+  // Only usable devices that are not the current one may be a copy destination;
+  // not_implemented providers must never be offered as a target.
+  const otherDevices = useMemo(
+    () =>
+      devices.filter(
+        (device) => device.id !== storageId && device.status !== 'not_implemented',
+      ),
+    [devices, storageId],
+  );
   const total = files.data?.total ?? rows.length;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_LIMIT));
   const isRoot = path === '';
@@ -102,6 +129,7 @@ export function FilesPage({ t, lang, storageId, storageName, path, onPathChange 
       setNotice(t('filesDestination'));
       return;
     }
+    const crossDevice = operation === 'copy' && destinationStorage !== '' && destinationStorage !== storageId;
     setBusy(true);
     setNotice(null);
     setConfirmError(null);
@@ -111,14 +139,28 @@ export function FilesPage({ t, lang, storageId, storageName, path, onPathChange 
         storage_id: storageId,
         sources: selected,
         destination: operation === 'delete' ? undefined : target,
+        destination_storage: crossDevice ? destinationStorage : undefined,
         confirm: confirmed ? true : undefined,
       });
       const failures = response.results.filter((result) => result.status === 'error');
+      if (operation === 'delete') {
+        // The delete response carries the journal path for every trashed entry;
+        // undo uses exactly those paths and never invents one.
+        const trampled = response.results
+          .filter((result) => result.status === 'ok' && result.trash_path)
+          .map((result) => ({ source: result.source, trashPath: result.trash_path ?? '' }));
+        setUndoBatch(trampled.length > 0 ? { storageId, entries: trampled } : null);
+      } else {
+        setUndoBatch(null);
+      }
       setSelected([]);
       setPendingDelete(false);
+      const queued = response.results.some((result) => result.status === 'queued');
       setNotice(
         failures.length === 0
-          ? t('filesOperationDone')
+          ? queued
+            ? t('filesQueuedTransfer')
+            : t('filesOperationDone')
           : `${t('filesOperationFailed')}: ${failures[0].error ?? ''}`,
       );
       files.reload();
@@ -126,6 +168,51 @@ export function FilesPage({ t, lang, storageId, storageName, path, onPathChange 
       const message = err instanceof ApiError ? err.message : t('filesOperationFailed');
       setConfirmError(`${t('filesOperationFailed')}: ${message}`);
       files.reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Undo restores each trashed entry from the journal returned by the delete
+  // call; the UI never guesses a trash path.
+  const undoDelete = async () => {
+    if (!undoBatch) return;
+    setBusy(true);
+    try {
+      for (const entry of undoBatch.entries) {
+        await api.undo({
+          storage_id: undoBatch.storageId,
+          source: entry.source,
+          trash_path: entry.trashPath,
+        });
+      }
+      setUndoBatch(null);
+      setNotice(t('filesUndone'));
+      files.reload();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('filesOperationFailed');
+      setConfirmError(`${t('filesOperationFailed')}: ${message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const commitRename = async (name: string) => {
+    if (!renaming) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === renaming.name) {
+      setRenaming(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.rename(storageId, renaming.id, trimmed);
+      setRenaming(null);
+      setNotice(t('filesOperationDone'));
+      files.reload();
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('filesOperationFailed');
+      setConfirmError(`${t('filesOperationFailed')}: ${message}`);
     } finally {
       setBusy(false);
     }
@@ -231,6 +318,19 @@ export function FilesPage({ t, lang, storageId, storageName, path, onPathChange 
                 placeholder={path || '/'}
                 data-nav
               />
+              <select
+                value={destinationStorage}
+                onChange={(event) => setDestinationStorage(event.target.value)}
+                aria-label={t('filesDestinationStorage')}
+                data-nav
+              >
+                <option value="">{storageName}</option>
+                {otherDevices.map((device) => (
+                  <option key={device.id} value={device.id}>
+                    {device.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <button
               type="button"
@@ -266,6 +366,14 @@ export function FilesPage({ t, lang, storageId, storageName, path, onPathChange 
         )}
 
         {notice && <div className="inline-notice">{notice}</div>}
+        {undoBatch && (
+          <div className="inline-notice undo-notice">
+            <span>{t('filesUndoHint')}</span>
+            <button type="button" className="soft" onClick={() => void undoDelete()} disabled={busy} data-nav>
+              {t('filesUndo')}
+            </button>
+          </div>
+        )}
 
         <div className="file-list" role="table" aria-label={t('filesTitle')}>
           <div className="list-head" role="row">
@@ -315,6 +423,35 @@ export function FilesPage({ t, lang, storageId, storageName, path, onPathChange 
                   >
                     <Star aria-hidden />
                   </button>
+                  {renaming?.id === entry.id ? (
+                    <input
+                      className="rename-input"
+                      defaultValue={entry.name}
+                      autoFocus
+                      aria-label={t('filesRenamePrompt')}
+                      onClick={(event) => event.stopPropagation()}
+                      onBlur={(event) => void commitRename(event.target.value)}
+                      onKeyDown={(event) => {
+                        event.stopPropagation();
+                        if (event.key === 'Enter') void commitRename(event.currentTarget.value);
+                        if (event.key === 'Escape') setRenaming(null);
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="icon-btn tiny"
+                      title={t('filesRename')}
+                      aria-label={t('filesRename')}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setRenaming(entry);
+                      }}
+                      data-nav
+                    >
+                      <Pencil aria-hidden />
+                    </button>
+                  )}
                 </span>
                 <span>{entry.kind === 'directory' ? '—' : formatBytes(entry.size)}</span>
                 <span>{formatDate(entry.modified, lang)}</span>
