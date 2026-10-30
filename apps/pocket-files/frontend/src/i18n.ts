@@ -107,6 +107,8 @@ export interface Strings {
   previewUnsupported: string;
   previewBookTitle: string;
   previewBookBody: string;
+  previewOpenInApp: string;
+  previewAppUnavailable: string;
   filesRenamePrompt: string;
   filesUndo: string;
   filesUndoHint: string;
@@ -324,6 +326,8 @@ export const en: Strings = {
   previewUnsupported: 'No in-browser preview for this file type.',
   previewBookTitle: 'Reader formats',
   previewBookBody: 'EPUB and other book formats open in Pocket Reader. In-browser rendering is not part of this build.',
+  previewOpenInApp: 'Open in Pocket app',
+  previewAppUnavailable: 'The Pocket app for this type is not available on this device.',
   filesRenamePrompt: 'New name',
   filesUndo: 'Undo',
   filesUndoHint: 'Items were moved to Trash.',
@@ -533,6 +537,8 @@ export const zh: Strings = {
   previewUnsupported: '此文件类型没有浏览器内预览。',
   previewBookTitle: '阅读器格式',
   previewBookBody: 'EPUB 等书籍格式由 Pocket Reader 打开；本版本不提供浏览器内渲染。',
+  previewOpenInApp: '在 Pocket 应用中打开',
+  previewAppUnavailable: '此设备上没有可打开该类型的 Pocket 应用。',
   filesRenamePrompt: '新名称',
   filesUndo: '撤销',
   filesUndoHint: '项目已移入回收站。',
@@ -742,6 +748,8 @@ export const ja: Strings = {
   previewUnsupported: 'この形式はブラウザ内プレビューに対応していません。',
   previewBookTitle: 'リーダー形式',
   previewBookBody: 'EPUB などの書籍形式は Pocket Reader で開きます。ブラウザ内表示はこのビルドには含まれません。',
+  previewOpenInApp: 'Pocket アプリで開く',
+  previewAppUnavailable: 'この端末にはこの形式を開ける Pocket アプリがありません。',
   filesRenamePrompt: '新しい名前',
   filesUndo: '元に戻す',
   filesUndoHint: '項目をごみ箱に移動しました。',

@@ -82,16 +82,28 @@ func (s *Server) handleViews(w http.ResponseWriter, r *http.Request, parts []str
 }
 
 func (s *Server) handleApps(w http.ResponseWriter, r *http.Request, parts []string) {
+	if s.apps == nil {
+		s.apps = newAppRegistry()
+	}
 	if len(parts) >= 3 && parts[2] == "open" {
-		s.json(w, 200, map[string]any{"status": "unavailable", "reason": "pj_app_registry_not_installed"})
+		s.openEntryHandler(w, r)
 		return
 	}
-	s.json(w, 200, map[string]any{"status": "unavailable", "reason": "pj_app_registry_not_installed"})
+	// Registry status: report whether a PJAppRegistry endpoint is configured.
+	status := "unavailable"
+	reason := "app_registry_not_configured"
+	if s.apps.entrypoint != "" {
+		status = "ok"
+		reason = ""
+	}
+	s.json(w, http.StatusOK, map[string]any{"status": status, "reason": reason, "registered": false})
 }
 
+// handleCapabilities advertises network/cloud extension points. They are not
+// devices: /api/storage never lists them, and operations return 501.
 func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		s.error(w, 405, "method_not_allowed", "use GET")
+		s.error(w, http.StatusMethodNotAllowed, "method_not_allowed", "use GET")
 		return
 	}
 	items := []map[string]any{
@@ -99,5 +111,5 @@ func (s *Server) handleCapabilities(w http.ResponseWriter, r *http.Request) {
 		{"id": "webdav", "kind": "webdav", "status": "not_implemented"},
 		{"id": "cloud", "kind": "cloud", "status": "not_implemented"},
 	}
-	s.json(w, 200, map[string]any{"providers": items})
+	s.json(w, http.StatusOK, map[string]any{"providers": items})
 }

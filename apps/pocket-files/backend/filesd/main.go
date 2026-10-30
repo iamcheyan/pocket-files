@@ -24,9 +24,10 @@ type storageDTO struct {
 	Used     int64  `json:"used"`
 }
 type Server struct {
-	p  storageBackend
-	db *sql.DB
-	be *Backend
+	p    storageBackend
+	db   *sql.DB
+	be   *Backend
+	apps *appRegistry
 }
 
 func (s *Server) storageItems(devices []Device) []storageDTO {
@@ -295,7 +296,7 @@ func main() {
 	be.recoverTransfers()
 	addr := env("POCKET_FILES_ADDR", "127.0.0.1:8787")
 	log.Printf("filesd listening on %s (%d mock volumes, %d configured, smb/webdav/cloud not implemented)", addr, len(mock.devices), len(cfg.Storages))
-	if e = http.ListenAndServe(addr, &Server{p: providers, db: db, be: be}); e != nil {
+	if e = http.ListenAndServe(addr, &Server{p: providers, db: db, be: be, apps: newAppRegistry()}); e != nil {
 		log.Fatal(e)
 	}
 }

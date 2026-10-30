@@ -176,6 +176,14 @@ export interface BulkResponse {
   results: BulkOperationResult[];
 }
 
+export interface AppLaunchResult {
+  status: string;
+  app?: string;
+  target?: string;
+  reason?: string;
+  message?: string;
+}
+
 export interface HealthResponse {
   status: string;
   mode: string;

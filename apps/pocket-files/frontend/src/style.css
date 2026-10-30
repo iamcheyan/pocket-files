@@ -2219,3 +2219,20 @@ svg {
   max-width: 46ch;
   margin: 8px auto 0;
 }
+
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.preview-unavailable {
+  font-size: var(--font-tiny);
+  color: var(--warning, #b4690e);
+}
+
+.preview-opened {
+  font-size: var(--font-tiny);
+  color: var(--success, #2f7d4f);
+}

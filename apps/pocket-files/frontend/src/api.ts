@@ -5,6 +5,7 @@
 
 import type {
   AnalyticsData,
+  AppLaunchResult,
   BulkRequest,
   BulkResponse,
   FavoritesResponse,
@@ -189,6 +190,14 @@ export const api = {
 
   view(name: string): Promise<ViewResponse> {
     return request<ViewResponse>(`/api/views/${encodeURIComponent(name)}`);
+  },
+
+  // Ask PJAppRegistry (through filesd) to open the entry. A registry that is not
+  // configured answers status:"unavailable" rather than throwing.
+  openInApp(storageId: string, path: string): Promise<AppLaunchResult> {
+    return request<AppLaunchResult>(
+      `/api/apps/open${query({ storage_id: storageId, path })}`,
+    );
   },
 
   analytics(storageId: string): Promise<AnalyticsData> {

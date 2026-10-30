@@ -9,7 +9,8 @@
 // instead of pretending to render.
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { ExternalLink, X } from 'lucide-react';
+import { ApiError, api } from '../api';
 import type { TFunction } from '../i18n';
 import { formatBytes, formatDate } from '../format';
 import type { FileEntry } from '../types';
@@ -46,6 +47,9 @@ export function FilePreview({ t, storageId, entry, onClose }: FilePreviewProps) 
 
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [launch, setLaunch] = useState<{ state: 'idle' | 'pending' | 'unavailable' | 'opened'; message?: string }>({
+    state: 'idle',
+  });
 
   useEffect(() => {
     if (kind !== 'text') return;
@@ -95,6 +99,37 @@ export function FilePreview({ t, storageId, entry, onClose }: FilePreviewProps) 
             <X aria-hidden />
           </button>
         </header>
+
+        <div className="preview-actions">
+          <button
+            type="button"
+            className="soft"
+            disabled={launch.state === 'pending'}
+            onClick={async () => {
+              setLaunch({ state: 'pending' });
+              try {
+                const result = await api.openInApp(storageId, entry.id);
+                setLaunch(
+                  result.status === 'ok'
+                    ? { state: 'opened', message: result.app }
+                    : { state: 'unavailable', message: result.message ?? t('previewAppUnavailable') },
+                );
+              } catch (err) {
+                setLaunch({
+                  state: 'unavailable',
+                  message: err instanceof ApiError ? err.message : t('previewAppUnavailable'),
+                });
+              }
+            }}
+            data-nav
+          >
+            <ExternalLink aria-hidden /> {t('previewOpenInApp')}
+          </button>
+          {launch.state === 'unavailable' && (
+            <span className="preview-unavailable">{t('previewAppUnavailable')}</span>
+          )}
+          {launch.state === 'opened' && <span className="preview-opened">{launch.message}</span>}
+        </div>
 
         <div className="preview-body">
           {kind === 'image' && <img src={previewUrl} alt={entry.name} />}

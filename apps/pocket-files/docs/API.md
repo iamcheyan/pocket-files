@@ -94,8 +94,12 @@ Workers stream in 256 KiB buffers and persist progress (`bytes_done,total_bytes,
 ## Downloads and apps
 
 - `GET /api/downloads` → `503 {"status":"unavailable","source":"downloadsd"}` (no downloadsd client).
-- `GET /api/apps/open?storage_id=&path=` → `200 {"status":"unavailable"}` (PJAppRegistry not installed; documented stub).
-- `GET /api/apps` → `200 {"status":"unavailable","reason":"pj_app_registry_not_installed"}`.
+- `GET /api/apps` → registry status: `{status,reason,registered}`. Without a configured endpoint it reports `status:"unavailable"`, `reason:"app_registry_not_configured"`.
+- `GET /api/apps/open?storage_id=&path=` (or `?id=storage:path`) → asks the `PJAppRegistry`/`AppLaunchAPI` endpoint in `POCKET_FILES_APP_REGISTRY` to open the entry.
+  - The file type maps to a Pocket app: reader (epub/pdf/mobi/azw/azw3/cbz/cbr/txt/md), music (mp3/flac/wav/ogg/m4a/aac/opus), video (mp4/mkv/webm/avi/mov/m4v), gamehub (gba/gb/nes/sfc/iso/rom/n64/z64), web (html/htm).
+  - Response always includes `status`; when no endpoint is configured or the app is missing the result is `status:"unavailable"` with `reason` and a human-readable `message`, which the UI renders as a visible unavailable state. Unknown extensions answer `reason:"no_app_for_type"`; missing entries 404.
+  - Pocket Files never launches a host binary itself.
+- `GET /api/downloads` → `503 {"status":"unavailable","source":"downloadsd"}`. Downloads are read from `downloadsd` only; this build has no client and no local download engine, and the UI surfaces the unavailable state instead of inventing entries.
 
 ## Guarantees
 
