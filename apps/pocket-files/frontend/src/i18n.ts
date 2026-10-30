@@ -132,7 +132,8 @@ export interface Strings {
   transfersStatusFailed: string;
   transfersStatusCanceled: string;
   transfersUnavailable: string;
-  transfersProgress: string;
+  transfersStatus: string;
+  transfersSpeed: string;
 
   // Search
   searchTitle: string;
@@ -330,7 +331,8 @@ export const en: Strings = {
   transfersStatusFailed: 'Failed',
   transfersStatusCanceled: 'Canceled',
   transfersUnavailable: 'Transfer list unavailable',
-  transfersProgress: '{n}%',
+  transfersStatus: 'Status',
+  transfersSpeed: 'Speed',
 
   searchTitle: 'Search',
   searchPlaceholder: 'Search files and folders',
@@ -522,7 +524,8 @@ export const zh: Strings = {
   transfersStatusFailed: '失败',
   transfersStatusCanceled: '已取消',
   transfersUnavailable: '传输列表不可用',
-  transfersProgress: '{n}%',
+  transfersStatus: '状态',
+  transfersSpeed: '速度',
 
   searchTitle: '搜索',
   searchPlaceholder: '搜索文件和文件夹',
@@ -714,7 +717,8 @@ export const ja: Strings = {
   transfersStatusFailed: '失敗',
   transfersStatusCanceled: 'キャンセル済み',
   transfersUnavailable: '転送リストを利用できません',
-  transfersProgress: '{n}%',
+  transfersStatus: '状態',
+  transfersSpeed: '速度',
 
   searchTitle: '検索',
   searchPlaceholder: 'ファイルとフォルダを検索',

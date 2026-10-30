@@ -91,7 +91,7 @@ func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if e := s.be.copyFile(req.StorageID, req.Source, req.Destination); e != nil {
-			s.error(w, 400, "operation_failed", e.Error())
+			s.storageError(w, "operation_failed", e)
 			return
 		}
 		s.json(w, 200, opResult{Status: "ok", Action: "copy", StorageID: req.StorageID, Source: req.Source, Destination: req.Destination})
@@ -101,7 +101,7 @@ func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if e := s.be.moveFile(req.StorageID, req.Source, req.Destination); e != nil {
-			s.error(w, 400, "operation_failed", e.Error())
+			s.storageError(w, "operation_failed", e)
 			return
 		}
 		s.json(w, 200, opResult{Status: "ok", Action: "move", StorageID: req.StorageID, Source: req.Source, Destination: req.Destination})
@@ -112,7 +112,7 @@ func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request) {
 		}
 		tp, e := s.be.trashEntry(req.StorageID, req.Source)
 		if e != nil {
-			s.error(w, 400, "operation_failed", e.Error())
+			s.storageError(w, "operation_failed", e)
 			return
 		}
 		s.json(w, 200, opResult{Status: "ok", Action: "delete", StorageID: req.StorageID, Source: req.Source, TrashPath: tp})
@@ -122,7 +122,7 @@ func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if e := s.be.restoreEntry(req.StorageID, req.Source, req.TrashPath); e != nil {
-			s.error(w, 400, "operation_failed", e.Error())
+			s.storageError(w, "operation_failed", e)
 			return
 		}
 		s.json(w, 200, opResult{Status: "ok", Action: "undo", StorageID: req.StorageID, Source: req.Source})
@@ -317,7 +317,7 @@ func (s *Server) handleRecents(w http.ResponseWriter, r *http.Request) {
 		s.json(w, 200, map[string]any{"items": s.be.listRecents(kind, 0)})
 	case "DELETE":
 		if e := s.be.clearRecents(); e != nil {
-			s.error(w, 400, "operation_failed", e.Error())
+			s.storageError(w, "operation_failed", e)
 			return
 		}
 		s.json(w, 200, map[string]any{"status": "ok"})
@@ -346,7 +346,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if e := s.be.putSetting(k, string(v)); e != nil {
-				s.error(w, 400, "operation_failed", e.Error())
+				s.storageError(w, "operation_failed", e)
 				return
 			}
 		}
@@ -391,7 +391,7 @@ func (s *Server) handleFilePreview(w http.ResponseWriter, r *http.Request, id st
 		s.error(w, 400, "unsupported_type", "preview not supported for this file type")
 		return
 	}
-	full, err := (sandbox{s.p.roots}).resolve(sid, rel, false)
+	full, err := s.p.resolve(sid, rel, false)
 	if err != nil {
 		s.error(w, 400, "resolve_error", "unable to read file")
 		return

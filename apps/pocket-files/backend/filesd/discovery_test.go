@@ -55,8 +55,11 @@ func fixtureEnv(t *testing.T) discoveryEnv {
 	}
 	return discoveryEnv{
 		mountinfoPath: "/proc/self/mountinfo",
-		readFile:      func(path string) (string, error) { b, err := os.ReadFile(filepath.Join(root, path)); return string(b), err },
-		readLink:      func(path string) (string, error) { return os.Readlink(filepath.Join(root, path)) },
+		readFile: func(path string) (string, error) {
+			b, err := os.ReadFile(filepath.Join(root, path))
+			return string(b), err
+		},
+		readLink: func(path string) (string, error) { return os.Readlink(filepath.Join(root, path)) },
 		readDir: func(path string) ([]os.DirEntry, error) {
 			return os.ReadDir(filepath.Join(root, path))
 		},

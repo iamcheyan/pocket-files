@@ -23,7 +23,7 @@ type storageDTO struct {
 	Used     int64  `json:"used"`
 }
 type Server struct {
-	p  *MockProvider
+	p  storageBackend
 	db *sql.DB
 	be *Backend
 }
@@ -35,7 +35,13 @@ func (s *Server) storageItems(devices []Device) []storageDTO {
 		if s.be != nil {
 			name = s.be.getFriendlyName(d.ID)
 		}
-		out = append(out, storageDTO{ID: d.ID, Name: name, Kind: d.Kind, Status: d.Status, Mock: d.Mock, ReadOnly: d.ReadOnly, Total: d.Total, Used: d.Used})
+		used := d.Used
+		if d.Mock {
+			// Mock volumes report the bytes of their generated samples against
+			// their declared nominal capacity, never the host disk's usage.
+			used = directoryUsage(d.Root)
+		}
+		out = append(out, storageDTO{ID: d.ID, Name: name, Kind: d.Kind, Status: d.Status, Mock: d.Mock, ReadOnly: d.ReadOnly, Total: d.Total, Used: used})
 	}
 	return out
 }
@@ -125,7 +131,7 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request, parts []str
 			items, err = s.p.Browse(r.Context(), id, pathQ)
 		}
 		if err != nil {
-			s.error(w, 400, "storage_error", err.Error())
+			s.storageError(w, "storage_error", err)
 			return
 		}
 		if q == "" && pathQ != "" {
@@ -233,7 +239,7 @@ func (s *Server) handleStorageItem(w http.ResponseWriter, r *http.Request, id st
 			return
 		}
 		if e := s.be.updateFriendlyName(id, body.FriendlyName); e != nil {
-			s.error(w, 400, "storage_error", e.Error())
+			s.storageError(w, "storage_error", e)
 			return
 		}
 		s.json(w, 200, map[string]any{"id": id, "friendly_name": body.FriendlyName})
@@ -256,7 +262,7 @@ func (s *Server) handleStorageUsage(w http.ResponseWriter, r *http.Request, id s
 	}
 	total, used, free, e := s.be.storageUsage(id)
 	if e != nil {
-		s.error(w, 400, "storage_error", e.Error())
+		s.storageError(w, "storage_error", e)
 		return
 	}
 	d, _ := s.be.getDevice(id)
@@ -340,7 +346,15 @@ func openDB(path string) (*sql.DB, error) {
 }
 
 func main() {
-	p, e := newMockProvider()
+	mock, e := newMockProvider()
+	if e != nil {
+		log.Fatal(e)
+	}
+	cfg, e := loadProviderConfig(env("POCKET_FILES_CONFIG", ""))
+	if e != nil {
+		log.Fatal(e)
+	}
+	providers, e := newProviderRouter(mock, cfg)
 	if e != nil {
 		log.Fatal(e)
 	}
@@ -349,12 +363,11 @@ func main() {
 		log.Fatal(e)
 	}
 	defer db.Close()
-	be := newBackend(p, db)
+	be := newBackend(providers, db)
 	be.recoverTransfers()
-	// wire storage usage routes via a custom mux on top of ServeHTTP is unnecessary: handled in handleStorageItem region.
 	addr := env("POCKET_FILES_ADDR", "127.0.0.1:8787")
-	log.Printf("filesd listening on %s (mock mode)", addr)
-	if e = http.ListenAndServe(addr, &Server{p: p, db: db, be: be}); e != nil {
+	log.Printf("filesd listening on %s (%d mock volumes, %d configured, smb/webdav/cloud not implemented)", addr, len(mock.devices), len(cfg.Storages))
+	if e = http.ListenAndServe(addr, &Server{p: providers, db: db, be: be}); e != nil {
 		log.Fatal(e)
 	}
 }

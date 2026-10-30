@@ -31,6 +31,22 @@ func sampleSet(id string, index int) []mockSample {
 }
 
 func seedMockVolume(root, id string, index int) error {
+	if os.Getenv("POCKET_FILES_MOCK_BIG") == "1" {
+		// Optional large sample so transfer progress can be observed end to end.
+		// Off by default to keep test and startup time short.
+		big := filepath.Join(root, "Videos", "Large Sample.mp4")
+		file, err := os.Create(big)
+		if err != nil {
+			return err
+		}
+		if err = file.Truncate(48 << 20); err != nil {
+			file.Close()
+			return err
+		}
+		if err = file.Close(); err != nil {
+			return err
+		}
+	}
 	for _, sample := range sampleSet(id, index) {
 		full := filepath.Join(root, filepath.FromSlash(sample.rel))
 		if err := os.MkdirAll(filepath.Dir(full), 0700); err != nil {

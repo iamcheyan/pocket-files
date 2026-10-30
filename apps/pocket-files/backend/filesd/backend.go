@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -16,18 +15,18 @@ import (
 )
 
 type Backend struct {
-	p  *MockProvider
+	p  storageBackend
 	db *sql.DB
 	tc *transferController
 	sc *scanCache
 }
 
-func newBackend(p *MockProvider, db *sql.DB) *Backend {
+func newBackend(p storageBackend, db *sql.DB) *Backend {
 	return &Backend{p: p, db: db, tc: newTransferController(p, db), sc: newScanCache()}
 }
 
 func (b *Backend) getDevice(id string) (Device, bool) {
-	for _, d := range b.p.devices {
+	for _, d := range b.p.allDevices() {
 		if d.ID == id {
 			return d, true
 		}
@@ -63,19 +62,14 @@ func (b *Backend) storageUsage(id string) (total, used, free int64, err error) {
 	if !ok {
 		return 0, 0, 0, fmt.Errorf("unknown storage")
 	}
+	switch d.Status {
+	case "not_implemented":
+		return 0, 0, 0, ErrNotImplemented
+	}
 	if d.Mock {
 		// Mock volumes declare their own nominal capacity; reporting statfs here
 		// would attribute the development host's disk size to a fake device.
-		var sum int64
-		_ = filepath.WalkDir(d.Root, func(_ string, entry os.DirEntry, walkErr error) error {
-			if walkErr != nil || entry.IsDir() {
-				return nil
-			}
-			if info, statErr := entry.Info(); statErr == nil {
-				sum += info.Size()
-			}
-			return nil
-		})
+		sum := directoryUsage(d.Root)
 		return d.Total, sum, d.Total - sum, nil
 	}
 	if d.Root == "" {
@@ -427,14 +421,14 @@ func (b *Backend) viewByExts(ctx context.Context, exts map[string]bool) []map[st
 			}
 		}
 	}
-	for _, d := range b.p.devices {
+	for _, d := range b.p.allDevices() {
 		walk(d.ID, "")
 	}
 	return out
 }
 func (b *Backend) viewPath(ctx context.Context, rel string) []map[string]any {
 	out := []map[string]any{}
-	for _, d := range b.p.devices {
+	for _, d := range b.p.allDevices() {
 		items, e := b.p.Browse(ctx, d.ID, rel)
 		if e != nil {
 			continue
@@ -564,7 +558,7 @@ func (b *Backend) scanTree(storageID string) ([]Entry, map[string]int, []dirSize
 		return total
 	}
 	if storageID == "" {
-		for _, d := range b.p.devices {
+		for _, d := range b.p.allDevices() {
 			walk(d.ID, "")
 		}
 	} else {

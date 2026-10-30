@@ -78,8 +78,8 @@ export function TransfersPage({ t }: TransfersPageProps) {
       <div className="file-list">
         <div className="list-head transfers-head">
           <span>{t('filesName')}</span>
-          <span>{t('transfersTitle')}</span>
-          <span>{t('transfersProgress')}</span>
+          <span>{t('transfersStatus')}</span>
+          <span>{t('filesSize')}</span>
           <span />
         </div>
         {items.map((job) => {
@@ -104,6 +104,9 @@ export function TransfersPage({ t }: TransfersPageProps) {
                 </span>
                 <em>
                   {formatBytes(done)} / {formatBytes(total)}
+                  {status === 'running' && (job.speed ?? 0) > 0
+                    ? ` · ${formatBytes(job.speed ?? 0)}/s`
+                    : ''}
                 </em>
               </span>
               <span className="row-actions">

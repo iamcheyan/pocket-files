@@ -59,7 +59,7 @@ type itemProgress struct {
 }
 
 type transferController struct {
-	p    *MockProvider
+	p    storageBackend
 	db   *sql.DB
 	mu   sync.Mutex
 	jobs map[string]*transferJob
@@ -67,7 +67,7 @@ type transferController struct {
 	dbMu sync.Mutex
 }
 
-func newTransferController(p *MockProvider, db *sql.DB) *transferController {
+func newTransferController(p storageBackend, db *sql.DB) *transferController {
 	return &transferController{p: p, db: db, jobs: map[string]*transferJob{}, stop: map[string]chan struct{}{}}
 }
 
@@ -427,7 +427,7 @@ func (tc *transferController) processItem(j *transferJob, idx int, kind, storage
 	return false, fmt.Errorf("unknown job type %q", kind)
 }
 
-func fileSize(p *MockProvider, id, rel string) int64 {
+func fileSize(p storageBackend, id, rel string) int64 {
 	e, err := p.Stat(context.Background(), id, rel)
 	if err != nil {
 		return 0
@@ -435,14 +435,14 @@ func fileSize(p *MockProvider, id, rel string) int64 {
 	return e.Size
 }
 
-func dstResolved(p *MockProvider, id, rel string) string {
+func dstResolved(p storageBackend, id, rel string) string {
 	full, _ := tryResolve(p, id, rel)
 	return full
 }
-func tryResolve(p *MockProvider, id, rel string) (string, error) {
-	return (sandbox{p.roots}).resolve(id, rel, true)
+func tryResolve(p storageBackend, id, rel string) (string, error) {
+	return p.resolve(id, rel, true)
 }
-func uniqueName(p *MockProvider, id, rel string) string {
+func uniqueName(p storageBackend, id, rel string) string {
 	dir, name := resolveRelativeParent(rel)
 	dot := strings.LastIndex(name, ".")
 	base := name
@@ -461,8 +461,8 @@ func uniqueName(p *MockProvider, id, rel string) string {
 
 var errCancelled = fmt.Errorf("cancelled")
 
-func copyStreamProgress(p *MockProvider, j *transferJob, id, src, dst string, stop chan struct{}, started time.Time) error {
-	a, e := (sandbox{p.roots}).resolve(id, src, false)
+func copyStreamProgress(p storageBackend, j *transferJob, id, src, dst string, stop chan struct{}, started time.Time) error {
+	a, e := p.resolve(id, src, false)
 	if e != nil {
 		return fmt.Errorf("read %q: not found", src)
 	}
@@ -471,7 +471,7 @@ func copyStreamProgress(p *MockProvider, j *transferJob, id, src, dst string, st
 		return fmt.Errorf("read %q: io error", src)
 	}
 	defer in.Close()
-	b, err := (sandbox{p.roots}).resolve(id, dst, true)
+	b, err := p.resolve(id, dst, true)
 	if err != nil {
 		return fmt.Errorf("write %q: io error", dst)
 	}
