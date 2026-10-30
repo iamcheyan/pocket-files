@@ -92,6 +92,8 @@ export interface FilesQuery {
   type?: 'file' | 'directory';
   min_size?: number;
   max_size?: number;
+  modified_since?: string;
+  modified_before?: string;
   sort?: 'name' | 'size' | 'modified' | 'created' | 'type';
   order?: 'asc' | 'desc';
   limit?: number;
@@ -118,6 +120,8 @@ export const api = {
         type: params.type,
         min_size: params.min_size,
         max_size: params.max_size,
+        modified_since: params.modified_since,
+        modified_before: params.modified_before,
         sort: params.sort,
         order: params.order,
         limit: params.limit,

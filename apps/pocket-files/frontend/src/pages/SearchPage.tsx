@@ -24,6 +24,8 @@ export function SearchPage({ t, lang, storageId, initialQuery, onOpen }: SearchP
   const [typeFilter, setTypeFilter] = useState<FileTypeFilter>('all');
   const [minSize, setMinSize] = useState('');
   const [maxSize, setMaxSize] = useState('');
+  const [modifiedSince, setModifiedSince] = useState('');
+  const [modifiedBefore, setModifiedBefore] = useState('');
 
   const results = useApiResource(
     () =>
@@ -34,10 +36,12 @@ export function SearchPage({ t, lang, storageId, initialQuery, onOpen }: SearchP
             type: typeFilter === 'all' ? undefined : typeFilter === 'folders' ? 'directory' : 'file',
             min_size: parseSizeToBytes(minSize) ?? undefined,
             max_size: parseSizeToBytes(maxSize) ?? undefined,
+            modified_since: modifiedSince || undefined,
+            modified_before: modifiedBefore || undefined,
             limit: 200,
           })
         : Promise.resolve({ items: [] }),
-    [storageId, submitted, typeFilter, minSize, maxSize],
+    [storageId, submitted, typeFilter, minSize, maxSize, modifiedSince, modifiedBefore],
   );
 
   const rows = results.data?.items ?? [];
@@ -135,6 +139,24 @@ export function SearchPage({ t, lang, storageId, initialQuery, onOpen }: SearchP
             value={maxSize}
             onChange={(event) => setMaxSize(event.target.value)}
             placeholder={t('searchMaxSizeHint')}
+            data-nav
+          />
+        </label>
+        <label className="select-control">
+          <span>{t('searchModifiedSince')}</span>
+          <input
+            type="date"
+            value={modifiedSince}
+            onChange={(event) => setModifiedSince(event.target.value)}
+            data-nav
+          />
+        </label>
+        <label className="select-control">
+          <span>{t('searchModifiedBefore')}</span>
+          <input
+            type="date"
+            value={modifiedBefore}
+            onChange={(event) => setModifiedBefore(event.target.value)}
             data-nav
           />
         </label>

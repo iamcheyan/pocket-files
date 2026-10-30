@@ -301,10 +301,55 @@ func (b *Backend) applyFileFilters(items []Entry, q url.Values) []Entry {
 		}
 		items = filtered
 	}
+	if since := parseDate(q.Get("modified_since")); !since.IsZero() {
+		filtered := items[:0]
+		for _, x := range items {
+			if !x.Modified.Before(since) {
+				filtered = append(filtered, x)
+			}
+		}
+		items = filtered
+	}
+	if until := parseDateUpper(q.Get("modified_before")); !until.IsZero() {
+		filtered := items[:0]
+		for _, x := range items {
+			if !x.Modified.After(until) {
+				filtered = append(filtered, x)
+			}
+		}
+		items = filtered
+	}
 	if sortBy := q.Get("sort"); sortBy != "" {
 		items = stableSortEntries(items, sortBy, q.Get("order"))
 	}
 	return items
+}
+
+// parseDateUpper is parseDate for upper bounds. A date-only value expands to the
+// end of that day so "modified_before=2026-10-30" includes files changed then.
+func parseDateUpper(value string) time.Time {
+	parsed := parseDate(value)
+	if parsed.IsZero() {
+		return parsed
+	}
+	if len(strings.TrimSpace(value)) == len("2006-01-02") {
+		return parsed.Add(24*time.Hour - time.Nanosecond)
+	}
+	return parsed
+}
+
+// parseDate accepts RFC3339 timestamps and plain YYYY-MM-DD dates.
+func parseDate(value string) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed
+		}
+	}
+	return time.Time{}
 }
 
 func parseSize(s string) int64 {

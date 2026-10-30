@@ -159,6 +159,8 @@ export interface Strings {
   searchMinSize: string;
   searchMaxSize: string;
   searchMaxSizeHint: string;
+  searchModifiedSince: string;
+  searchModifiedBefore: string;
   searchUnavailable: string;
 
   // Favorites
@@ -377,6 +379,8 @@ export const en: Strings = {
   searchMinSize: 'Min size',
   searchMaxSize: 'Max size',
   searchMaxSizeHint: '∞',
+  searchModifiedSince: 'Modified after',
+  searchModifiedBefore: 'Modified before',
   searchUnavailable: 'Search unavailable',
 
   favoritesTitle: 'Favorites',
@@ -590,6 +594,8 @@ export const zh: Strings = {
   searchMinSize: '最小大小',
   searchMaxSize: '最大大小',
   searchMaxSizeHint: '∞',
+  searchModifiedSince: '修改晚于',
+  searchModifiedBefore: '修改早于',
   searchUnavailable: '搜索不可用',
 
   favoritesTitle: '收藏',
@@ -803,6 +809,8 @@ export const ja: Strings = {
   searchMinSize: '最小サイズ',
   searchMaxSize: '最大サイズ',
   searchMaxSizeHint: '∞',
+  searchModifiedSince: '更新日が以降',
+  searchModifiedBefore: '更新日が以前',
   searchUnavailable: '検索を利用できません',
 
   favoritesTitle: 'お気に入り',

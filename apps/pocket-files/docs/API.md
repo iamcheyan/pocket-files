@@ -21,6 +21,7 @@ Unknown storage ids return 404 `storage_not_found`.
   - `q` searches by name (recursive); otherwise `path` is browsed.
   - `ext` filters by extension; `type` filters `file`/`directory`.
   - `min_size`/`max_size` accept bytes or `KB`/`MB`/`GB` suffixes.
+  - `modified_since`/`modified_before` accept RFC3339 timestamps or `YYYY-MM-DD`; a date-only upper bound includes that whole day. Unparsable dates are ignored rather than silently returning nothing.
   - `sort` ∈ `name,size,modified,created,type`; `order` ∈ `asc,desc` (stable). `created` is the filesystem `ctime`.
   - `limit` defaults to 100 (max 500); `page` is zero-based.
   - Response `{items,page,limit,total}` where items carry `id,storage_id,name,parent,kind,size,modified,created,extension`.

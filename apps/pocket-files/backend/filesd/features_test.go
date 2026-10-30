@@ -610,3 +610,65 @@ func TestFileRenameContract(t *testing.T) {
 		}
 	}
 }
+
+func TestSearchDateFilters(t *testing.T) {
+	s, p, _ := newTestServer(t)
+	writeFile(t, p.roots["internal"], "Documents/old.txt", []byte("old"))
+	writeFile(t, p.roots["internal"], "Documents/new.txt", []byte("new"))
+	oldTime := time.Date(2024, 1, 5, 12, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(filepath.Join(p.roots["internal"], "Documents", "old.txt"), oldTime, oldTime); err != nil {
+		t.Fatal(err)
+	}
+
+	code, body := doJSON(t, s, http.MethodGet, "/api/files?storage_id=internal&path=Documents&modified_since=2025-01-01", nil)
+	if code != 200 {
+		t.Fatalf("status %d", code)
+	}
+	names := filteredNames(entryNames(body), "new.txt", "old.txt")
+	if len(names) != 1 || names[0] != "new.txt" {
+		t.Fatalf("modified_since result = %v", names)
+	}
+
+	code, body = doJSON(t, s, http.MethodGet, "/api/files?storage_id=internal&path=Documents&modified_before=2024-01-06", nil)
+	if code != 200 {
+		t.Fatalf("status %d", code)
+	}
+	names = filteredNames(entryNames(body), "new.txt", "old.txt")
+	if len(names) != 1 || names[0] != "old.txt" {
+		t.Fatalf("modified_before result = %v", names)
+	}
+
+	// An unparsable date must not silently filter everything out.
+	code, body = doJSON(t, s, http.MethodGet, "/api/files?storage_id=internal&path=Documents&modified_since=not-a-date", nil)
+	if code != 200 || len(filteredNames(entryNames(body), "new.txt", "old.txt")) != 2 {
+		t.Fatalf("invalid date should be ignored: %d %v", code, entryNames(body))
+	}
+}
+
+// filteredNames keeps only the names a test created, ignoring seeded samples.
+func filteredNames(names []string, keep ...string) []string {
+	allowed := make(map[string]bool, len(keep))
+	for _, name := range keep {
+		allowed[name] = true
+	}
+	out := names[:0]
+	for _, name := range names {
+		if allowed[name] {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+func entryNames(body map[string]any) []string {
+	items, _ := body["items"].([]any)
+	names := make([]string, 0, len(items))
+	for _, raw := range items {
+		if entry, ok := raw.(map[string]any); ok {
+			if name, ok := entry["name"].(string); ok {
+				names = append(names, name)
+			}
+		}
+	}
+	return names
+}

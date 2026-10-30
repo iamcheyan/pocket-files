@@ -20,6 +20,8 @@ check browse-folder     bash -c "curl -fsS '$base/api/files?storage_id=internal&
 check search            bash -c "curl -fsS '$base/api/files?storage_id=internal&q=Welcome' | grep -q 'Welcome.txt'"
 check ext-filter        bash -c "curl -fsS '$base/api/files?storage_id=internal&path=Documents&ext=txt' | grep -q 'Welcome.txt'"
 check sort-order        bash -c "curl -fsS '$base/api/files?storage_id=internal&sort=name&order=desc' | head -c 200 | grep -q 'Videos'"
+check date-since        bash -c "curl -fsS '$base/api/files?storage_id=internal&path=Documents&modified_since=2026-01-01' | grep -q 'Welcome.txt'"
+check date-before-empty bash -c "curl -fsS '$base/api/files?storage_id=internal&path=Documents&modified_before=2000-01-01' | grep -q '\"items\":\[\]'"
 check pagination        bash -c "curl -fsS '$base/api/files?storage_id=internal&limit=2&page=0' | grep -Eq '\"total\":[6-9]'"
 check page-two          bash -c "curl -fsS '$base/api/files?storage_id=internal&limit=2&page=1' | grep -q '\"page\":1'"
 check images-folder     bash -c "curl -fsS '$base/api/files?storage_id=internal&path=Images' | grep -q 'Sample Pixel.png'"
