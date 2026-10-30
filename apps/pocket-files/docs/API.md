@@ -9,7 +9,9 @@ Base URL: `http://127.0.0.1:8787`. Errors use `{"error":{"code":"...","message":
 - `GET /api/storage/{id}` → storage detail (`id,name,kind,status,mock,read_only,total,used,friendly_name`).
 - `GET /api/storage/{id}/usage` → `{id,mock,total,used,free}` computed with `syscall.Statfs` on the provider root (mock roots are real temporary directories).
 - `PUT /api/storage/{id}` body `{"friendly_name":"..."}` → persists the friendly name in SQLite (`storage_devices`); the new name is reflected by `GET /api/storage` and detail. Empty name → 400.
-- `POST /api/storage/{id}/mount` and `POST /api/storage/{id}/unmount` → `501 not_implemented` in mock mode with no side effects.
+- `POST /api/storage/{id}/mount` and `POST /api/storage/{id}/unmount` → `501 not_implemented` with no side effects. Lifecycle changes always require an explicit operator action, so no request can mount or unmount a host volume.
+- `GET /api/storage/detected` → `{items,mode:"read_only",note}` listing real removable media found by read-only Linux discovery (`/proc/self/mountinfo` + `/sys/class/block`, identified by filesystem UUID). These entries are display-only: they are not operable through the generic provider routes, and `mount`/`copy`/`delete` on them are never offered.
+- `GET /api/providers` → `{providers:[{id,kind,status:"not_implemented"}]}` for the SMB, WebDAV and Cloud extension points. Stub providers are capabilities, not devices: they never appear in `GET /api/storage`, and any operation on their storage id returns `501 not_implemented`.
 
 Unknown storage ids return 404 `storage_not_found`.
 
@@ -23,8 +25,9 @@ Unknown storage ids return 404 `storage_not_found`.
   - `limit` defaults to 100 (max 500); `page` is zero-based.
   - Response `{items,page,limit,total}` where items carry `id,storage_id,name,parent,kind,size,modified,created,extension`.
   - Browsing a non-root path also records a recent entry.
-- `GET /api/files/metadata/{storage_id}:{path}` → a single Entry object (records a recent).
-- `GET /api/files/preview/{storage_id}:{path}` → streams file content with the correct `Content-Type` for images (png/jpeg/gif/webp/bmp), text/csv/log, markdown, json, yaml and pdf. Files larger than 8 MiB return 400 `unsupported_type`; directories and other types return 400.
+- `GET /api/files/{id}/metadata` → a single Entry object (records a recent). `{id}` is the URL-escaped `storage_id:path` identifier, e.g. `/api/files/internal%3ADocuments%2FWelcome.txt/metadata`. The legacy `/api/files/metadata/{id}` form is also accepted.
+- `GET /api/files/{id}/preview` → streams file content with the correct `Content-Type` for images (png/jpeg/gif/webp/bmp), text/csv/log, markdown, json, yaml and pdf. Files larger than 8 MiB return 400 `unsupported_type`; directories and other types return 400.
+- `PUT /api/files/{id}/rename` body `{"name":"new-name"}` → renames in place inside the same sandboxed parent and returns `{status,storage_id,source,destination,name}`. Names containing `/` or `\`, `.`, `..` and empty names are rejected with 400 `invalid_name`/`invalid_request`.
 
 ## Folders and operations
 
@@ -34,7 +37,9 @@ Unknown storage ids return 404 `storage_not_found`.
   - `undo` restores `source` from `trash_path`.
   - Response `{status,action,storage_id,source,destination?,trash_path?}`.
 - `POST /api/operations/undo` behaves like `POST /api/operations` with `action:"undo"`.
-- `POST /api/operations/bulk` body `{action,storage_id,sources,destination?,confirm?}` with `action` ∈ `copy,move,delete`.
+- `POST /api/operations/copy|move|delete|undo` accept the same body without repeating the action in the payload (the route supplies it).
+- `POST /api/operations/bulk` body `{action,storage_id,sources,destination?,destination_storage?,confirm?}` with `action` ∈ `copy,move,delete`.
+  - When `destination_storage` is set and differs from `storage_id`, each bulk copy is enqueued as a real cross-device transfer (streamed through the queue) and reported with `status:"queued"`; progress then appears in `GET /api/transfers`.
   - Bulk `delete` requires `confirm:true`; otherwise 400 `confirm_required`.
   - Response `{status,action,storage_id,results:[{status,action,storage_id,source,destination?,trash_path?,error?}]}`.
   - Bulk `undo` is rejected (400).
@@ -45,8 +50,8 @@ All operations are sandboxed: absolute paths, `..`, and symlink escapes are reje
 
 Durable queue in SQLite (`transfer_jobs`, `transfer_items`, `transfer_order`). Job types: `copy`, `move`, `delete`. Statuses: `queued, running, paused, failed, completed, cancelled, conflict`.
 
-- `GET /api/transfers` → `{items:[{id,type,storage_id,status,conflict_strategy,paused,priority,bytes_done,total_bytes,speed,eta,items:[{src,dst,state,error}]}]}` (highest priority first).
-- `POST /api/transfers` body `{id?,type,storage_id,conflict_strategy?,priority?,items:[{src,dst?}]}` → 201 job DTO. `conflict_strategy` ∈ `skip,replace,keep_both,ask` (default `skip`).
+- `GET /api/transfers` → `{items:[{id,type,storage_id,status,conflict_strategy,paused,priority,bytes_done,total_bytes,speed,eta,items:[{src,dst,dst_storage,state,error}]}]}` (highest priority first).
+- `POST /api/transfers` body `{id?,type,storage_id,destination_storage?,conflict_strategy?,priority?,items:[{src,dst?}]}` → 201 job DTO. `conflict_strategy` ∈ `skip,replace,keep_both,ask` (default `skip`). Setting `destination_storage` copies across providers: the source is read from `storage_id` and the destination is written to the other storage with a streaming 256 KiB loop.
   - `skip` leaves an existing destination untouched; `replace` overwrites; `keep_both` writes a uniquely named copy; `ask` enters status `conflict` (item state `waiting_conflict`) without writing.
 - `POST /api/transfers/{id}/pause` → sets `paused` (workers also honour pause per 256 KiB chunk).
 - `POST /api/transfers/{id}/resume` → clears pause and restarts the worker when not already active.
