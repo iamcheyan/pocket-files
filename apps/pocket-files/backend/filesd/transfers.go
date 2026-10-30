@@ -752,6 +752,12 @@ func transferDTO(j *transferJob) map[string]any {
 
 func (s *Server) handleAnalytics(w http.ResponseWriter, r *http.Request) {
 	sid := r.URL.Query().Get("storage_id")
-	res := s.be.getAnalytics(sid)
-	s.json(w, 200, res)
+	// Large trees report progress from a background scan; small trees answer
+	// synchronously with the completed result.
+	res, pending := s.be.getAnalyticsWithProgress(r.Context(), sid)
+	status := 200
+	if pending {
+		status = 202
+	}
+	s.json(w, status, res)
 }

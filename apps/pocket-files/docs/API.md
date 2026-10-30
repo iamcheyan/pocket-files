@@ -99,6 +99,7 @@ Pins persist in `custom_locations` and drive the sidebar's PINNED section.
 - `category_counts` bucket files into `Books/Music/Videos/Games/Documents/Other` by extension.
 - `largest_files` (top 20) and `largest_directories` (top 20, provider-relative uri) come from a recursive scan.
 - Results are cached (~5 minutes) keyed by `storage_id`; `cache_timestamp` reports when the scan ran.
+- Small trees answer synchronously (`200`, `backgrounded:false`). Trees above 500 entries start a background scan and answer `202` with `backgrounded:true` plus a real `progress` value; polling returns the completed result once the scan finishes. This keeps a request from blocking on a very large tree.
 
 ## Downloads and apps
 

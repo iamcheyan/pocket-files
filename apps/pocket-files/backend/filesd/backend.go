@@ -19,10 +19,11 @@ type Backend struct {
 	db *sql.DB
 	tc *transferController
 	sc *scanCache
+	sj *scanJobs
 }
 
 func newBackend(p storageBackend, db *sql.DB) *Backend {
-	return &Backend{p: p, db: db, tc: newTransferController(p, db), sc: newScanCache()}
+	return &Backend{p: p, db: db, tc: newTransferController(p, db), sc: newScanCache(), sj: newScanJobs()}
 }
 
 func (b *Backend) getDevice(id string) (Device, bool) {
@@ -542,7 +543,28 @@ type analyticsResult struct {
 	Progress           float64          `json:"progress"`
 }
 
+func (b *Backend) computeAnalyticsTracked(storageID string, job *scanJob) analyticsResult {
+	// The tracked variant reports progress as the recursive scan proceeds.
+	return b.computeAnalyticsWith(storageID, func(files int) {
+		job.mu.Lock()
+		job.progress.Files = files
+		// Progress is a soft estimate: scale against a nominal 2000-file tree so
+		// the UI shows movement without pretending to know the exact total.
+		const nominal = 2000.0
+		progress := float64(files) / nominal
+		if progress > 0.95 {
+			progress = 0.95
+		}
+		job.progress.Progress = progress
+		job.mu.Unlock()
+	})
+}
+
 func (b *Backend) computeAnalytics(storageID string) analyticsResult {
+	return b.computeAnalyticsWith(storageID, nil)
+}
+
+func (b *Backend) computeAnalyticsWith(storageID string, tick func(files int)) analyticsResult {
 	d, ok := b.getDevice(storageID)
 	res := analyticsResult{StorageID: storageID, Mock: d.Mock, CategoryCounts: map[string]int{}}
 	if ok {
@@ -552,7 +574,7 @@ func (b *Backend) computeAnalytics(storageID string) analyticsResult {
 	}
 	res.LargestFiles = []map[string]any{}
 	res.LargestDirectories = []map[string]any{}
-	files, cats, dirs := b.scanTree(storageID)
+	files, cats, dirs := b.scanTreeWith(storageID, tick)
 	res.CategoryCounts = cats
 	sort.Slice(files, func(i, j int) bool { return files[i].Size > files[j].Size })
 	for i, en := range files {
@@ -578,6 +600,10 @@ type dirSize struct {
 }
 
 func (b *Backend) scanTree(storageID string) ([]Entry, map[string]int, []dirSize) {
+	return b.scanTreeWith(storageID, nil)
+}
+
+func (b *Backend) scanTreeWith(storageID string, tick func(files int)) ([]Entry, map[string]int, []dirSize) {
 	cats := map[string]int{}
 	dirSizes := map[string]int64{}
 	files := map[string]Entry{}
@@ -596,6 +622,9 @@ func (b *Backend) scanTree(storageID string) ([]Entry, map[string]int, []dirSize
 			files[id+":"+item.ID] = item
 			total += item.Size
 			cats[categoryOf(item.Extension)]++
+			if tick != nil && len(files)%50 == 0 {
+				tick(len(files))
+			}
 		}
 		if rel != "" {
 			dirSizes[id+"\x00"+rel] += total
