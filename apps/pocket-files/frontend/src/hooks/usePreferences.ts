@@ -49,13 +49,17 @@ function detectLang(): Lang {
   return 'en';
 }
 
-// Viewport buckets. Thresholds are intentional and emulator-friendly:
-// handheld <= 480px wide, dap = short landscape screens (<= 520px tall),
-// reader = medium portrait panels (e-ink tablets), desktop otherwise.
+// Viewport buckets, matched to the reference devices:
+//   handheld — RG34XX-class panels (<= 480px wide)
+//   dap      — very short landscape screens (<= 360px tall), e.g. M21
+//   reader   — medium portrait panels, e-ink tablets (<= 900px wide)
+//   desktop  — everything else
+// 640x480 and 720x720 therefore land on reader/desktop instead of being
+// mistaken for a DAP.
 export function detectProfile(width: number, height: number): DeviceProfile {
   if (width <= 480) return 'handheld';
-  if (height <= 520) return 'dap';
-  if (width <= 900) return 'reader';
+  if (height <= 360) return 'dap';
+  if (width <= 900 || height <= 560) return 'reader';
   return 'desktop';
 }
 

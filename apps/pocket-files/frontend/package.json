@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "check:i18n": "bun scripts/check-i18n.ts",
+    "check:profiles": "bun scripts/check-profiles.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

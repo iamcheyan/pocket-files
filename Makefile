@@ -19,7 +19,7 @@ test-backend:
 	cd $(BACKEND) && go vet ./... && go test -race -count=1 ./...
 
 test-frontend:
-	cd $(FRONTEND) && bun run check:i18n && bun run typecheck && bun run build
+	cd $(FRONTEND) && bun run check:i18n && bun run check:profiles && bun run typecheck && bun run build
 
 e2e:
 	@cd $(BACKEND) && go build -o /tmp/pocket-filesd-e2e .
