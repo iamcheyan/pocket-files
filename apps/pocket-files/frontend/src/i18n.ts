@@ -102,6 +102,11 @@ export interface Strings {
   filesOperationDone: string;
   filesUndone: string;
   filesRename: string;
+  filesPreview: string;
+  previewUnavailable: string;
+  previewUnsupported: string;
+  previewBookTitle: string;
+  previewBookBody: string;
   filesRenamePrompt: string;
   filesUndo: string;
   filesUndoHint: string;
@@ -314,6 +319,11 @@ export const en: Strings = {
   filesOperationDone: 'Operation completed',
   filesUndone: 'Deletion undone',
   filesRename: 'Rename',
+  filesPreview: 'Preview',
+  previewUnavailable: 'Preview is unavailable for this file.',
+  previewUnsupported: 'No in-browser preview for this file type.',
+  previewBookTitle: 'Reader formats',
+  previewBookBody: 'EPUB and other book formats open in Pocket Reader. In-browser rendering is not part of this build.',
   filesRenamePrompt: 'New name',
   filesUndo: 'Undo',
   filesUndoHint: 'Items were moved to Trash.',
@@ -518,6 +528,11 @@ export const zh: Strings = {
   filesOperationDone: '操作已完成',
   filesUndone: '已撤销删除',
   filesRename: '重命名',
+  filesPreview: '预览',
+  previewUnavailable: '此文件无法预览。',
+  previewUnsupported: '此文件类型没有浏览器内预览。',
+  previewBookTitle: '阅读器格式',
+  previewBookBody: 'EPUB 等书籍格式由 Pocket Reader 打开；本版本不提供浏览器内渲染。',
   filesRenamePrompt: '新名称',
   filesUndo: '撤销',
   filesUndoHint: '项目已移入回收站。',
@@ -722,6 +737,11 @@ export const ja: Strings = {
   filesOperationDone: '操作が完了しました',
   filesUndone: '削除を元に戻しました',
   filesRename: '名前を変更',
+  filesPreview: 'プレビュー',
+  previewUnavailable: 'このファイルはプレビューできません。',
+  previewUnsupported: 'この形式はブラウザ内プレビューに対応していません。',
+  previewBookTitle: 'リーダー形式',
+  previewBookBody: 'EPUB などの書籍形式は Pocket Reader で開きます。ブラウザ内表示はこのビルドには含まれません。',
   filesRenamePrompt: '新しい名前',
   filesUndo: '元に戻す',
   filesUndoHint: '項目をごみ箱に移動しました。',

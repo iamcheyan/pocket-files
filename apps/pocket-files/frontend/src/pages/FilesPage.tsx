@@ -5,13 +5,19 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Archive,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eye,
   FileText,
+  Film,
   Folder,
   FolderPlus,
+  Image as ImageIcon,
   Move,
+  Music,
   Pencil,
   SquareCheck,
   Star,
@@ -23,6 +29,7 @@ import { formatBytes, formatDate, joinPath, parentPath } from '../format';
 import { useApiResource } from '../hooks/useApiResource';
 import type { TFunction } from '../i18n';
 import type { BulkOperation, FileEntry, FileTypeFilter, SortDirection, SortField } from '../types';
+import { FilePreview } from '../components/FilePreview';
 
 const PAGE_LIMIT = 50;
 
@@ -63,6 +70,7 @@ export function FilesPage({
     entries: { source: string; trashPath: string }[];
   } | null>(null);
   const [renaming, setRenaming] = useState<FileEntry | null>(null);
+  const [previewing, setPreviewing] = useState<FileEntry | null>(null);
 
   useEffect(() => {
     setPage(0);
@@ -238,8 +246,25 @@ export function FilesPage({
     }
   };
 
+  // Directories navigate; files open the verified preview surface instead of
+  // exposing any filesystem path to the browser.
   const openEntry = (entry: FileEntry) => {
-    if (entry.kind === 'directory') onPathChange(joinPath(path, entry.name));
+    if (entry.kind === 'directory') {
+      onPathChange(joinPath(path, entry.name));
+      return;
+    }
+    setPreviewing(entry);
+  };
+
+  const iconFor = (entry: FileEntry) => {
+    if (entry.kind === 'directory') return <Folder aria-hidden />;
+    const ext = (entry.extension || '').toLowerCase();
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return <ImageIcon aria-hidden />;
+    if (['mp4', 'mkv', 'webm', 'avi', 'mov', 'm4v'].includes(ext)) return <Film aria-hidden />;
+    if (['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac', 'opus'].includes(ext)) return <Music aria-hidden />;
+    if (['epub', 'mobi', 'azw', 'azw3', 'cbz', 'cbr'].includes(ext)) return <BookOpen aria-hidden />;
+    if (['zip', 'tar', 'gz', 'xz', '7z', 'rar'].includes(ext)) return <Archive aria-hidden />;
+    return <FileText aria-hidden />;
   };
 
   let body;
@@ -408,8 +433,23 @@ export function FilesPage({
                 }}
               >
                 <span className="file-name">
-                  {entry.kind === 'directory' ? <Folder aria-hidden /> : <FileText aria-hidden />}
+                  {iconFor(entry)}
                   {entry.name}
+                  {entry.kind !== 'directory' && (
+                    <button
+                      type="button"
+                      className="icon-btn tiny"
+                      title={t('filesPreview')}
+                      aria-label={`${t('filesPreview')} ${entry.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPreviewing(entry);
+                      }}
+                      data-nav
+                    >
+                      <Eye aria-hidden />
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="icon-btn tiny"
@@ -472,6 +512,15 @@ export function FilesPage({
           })}
           {rows.length === 0 && <div className="empty">{t('commonEmptyFolder')}</div>}
         </div>
+
+        {previewing && (
+          <FilePreview
+            t={t}
+            storageId={storageId}
+            entry={previewing}
+            onClose={() => setPreviewing(null)}
+          />
+        )}
 
         <div className="pagination">
           <button

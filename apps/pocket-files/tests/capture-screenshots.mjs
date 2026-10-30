@@ -259,6 +259,38 @@ await page.evaluate(async () => {
 await settle(1200);
 await capture('copy-progress-paused-1280x720.png');
 
+// Verified preview surfaces: bytes come from /api/files/{id}/preview.
+await openDevice('Internal');
+await settle(500);
+await page.evaluate(() => {
+  const row = Array.from(document.querySelectorAll('.file-row')).find((node) =>
+    (node.textContent ?? '').includes('Images'),
+  );
+  row?.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
+});
+await settle(900);
+const imageOpened = await page.evaluate(() => {
+  const row = Array.from(document.querySelectorAll('.file-row')).find((node) =>
+    (node.textContent ?? '').includes('Sample Pixel.png'),
+  );
+  const button = row?.querySelector('button[aria-label^="Preview"]');
+  if (!button) return false;
+  button.click();
+  return true;
+});
+if (!imageOpened) throw new Error('image preview control not found');
+await settle(1200);
+const imageReady = await page.evaluate(() => {
+  const img = document.querySelector('.preview-dialog img');
+  return img ? { complete: img.complete, width: img.naturalWidth } : null;
+});
+if (!imageReady || !imageReady.complete || imageReady.width === 0) {
+  throw new Error(`image preview did not load: ${JSON.stringify(imageReady)}`);
+}
+await capture('preview-image-1280x720.png');
+await page.evaluate(() => document.querySelector('.preview-dialog .icon-btn')?.click());
+await settle(400);
+
 for (const [theme, file] of [
   ['dark', 'overview-dark-1280x720.png'],
   ['oled', 'overview-oled-1280x720.png'],

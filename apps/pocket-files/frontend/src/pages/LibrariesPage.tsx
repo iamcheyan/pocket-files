@@ -2,13 +2,14 @@
 // 501 renders an explicit "not implemented" state, never placeholder rows.
 
 import { useState } from 'react';
-import { BookOpen, Download, FileText, Film, Folder, Gamepad2, Music } from 'lucide-react';
+import { BookOpen, Download, Eye, FileText, Film, Folder, Gamepad2, Music } from 'lucide-react';
 import { api } from '../api';
 import { EmptyState, LoadingState, UnavailableState } from '../components/ui';
 import { formatBytes, formatDate } from '../format';
 import { useApiResource } from '../hooks/useApiResource';
 import type { TFunction } from '../i18n';
-import type { LibraryKey } from '../types';
+import type { FileEntry, LibraryKey } from '../types';
+import { FilePreview } from '../components/FilePreview';
 
 interface LibraryDef {
   key: LibraryKey;
@@ -38,6 +39,7 @@ interface LibrariesPageProps {
 
 export function LibrariesPage({ t, lang, initial, onOpenEntry }: LibrariesPageProps) {
   const [active, setActive] = useState<LibraryKey>(initial);
+  const [previewing, setPreviewing] = useState<FileEntry | null>(null);
   const view = useApiResource(() => api.view(active), [active]);
   const items = view.data?.items ?? [];
 
@@ -76,6 +78,21 @@ export function LibrariesPage({ t, lang, initial, onOpenEntry }: LibrariesPagePr
             <span className="file-name">
               {entry.kind === 'directory' ? <Folder aria-hidden /> : <FileText aria-hidden />}
               {entry.name}
+              {entry.kind !== 'directory' && (
+                <button
+                  type="button"
+                  className="icon-btn tiny"
+                  title={t('filesPreview')}
+                  aria-label={`${t('filesPreview')} ${entry.name}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setPreviewing(entry);
+                  }}
+                  data-nav
+                >
+                  <Eye aria-hidden />
+                </button>
+              )}
             </span>
             <span>{entry.kind === 'directory' ? '—' : formatBytes(entry.size)}</span>
             <span>{formatDate(entry.modified, lang)}</span>
@@ -109,6 +126,14 @@ export function LibrariesPage({ t, lang, initial, onOpenEntry }: LibrariesPagePr
         ))}
       </div>
       {body}
+      {previewing && (
+        <FilePreview
+          t={t}
+          storageId={previewing.storage_id}
+          entry={previewing}
+          onClose={() => setPreviewing(null)}
+        />
+      )}
     </>
   );
 }

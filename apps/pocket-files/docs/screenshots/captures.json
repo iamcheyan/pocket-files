@@ -96,6 +96,14 @@
     "mock": true
   },
   {
+    "file": "docs/screenshots/preview-image-1280x720.png",
+    "width": 1280,
+    "height": 720,
+    "theme": "light",
+    "profile": "desktop",
+    "mock": true
+  },
+  {
     "file": "docs/screenshots/overview-dark-1280x720.png",
     "width": 1280,
     "height": 720,
