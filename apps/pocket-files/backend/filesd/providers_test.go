@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -281,5 +282,52 @@ func TestRouterDiscoveryHasNoDuplicateDevices(t *testing.T) {
 		if seen[stub] {
 			t.Errorf("unimplemented provider %q must not be advertised as a device", stub)
 		}
+	}
+}
+
+func TestPinnedLocationsCRUD(t *testing.T) {
+	s, _, _ := newTestServer(t)
+
+	code, body := doJSON(t, s, http.MethodPost, "/api/locations", map[string]any{
+		"name": "Docs", "storage_id": "internal", "uri": "/Documents/",
+	})
+	if code != http.StatusCreated {
+		t.Fatalf("create => %d %v", code, body)
+	}
+	if body["uri"] != "Documents" {
+		t.Fatalf("uri should be normalized, got %v", body["uri"])
+	}
+	id, _ := body["id"].(float64)
+
+	_, listed := doJSON(t, s, http.MethodGet, "/api/locations", nil)
+	items, _ := listed["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("list = %v", listed)
+	}
+
+	// Missing directories and unknown storage must be refused.
+	for _, payload := range []map[string]any{
+		{"name": "Ghost", "storage_id": "internal", "uri": "Nope/Nowhere"},
+		{"name": "Ghost", "storage_id": "absent", "uri": "Documents"},
+		{"name": "", "storage_id": "internal", "uri": "Documents"},
+		{"name": "Escape", "storage_id": "internal", "uri": "../etc"},
+	} {
+		code, _ = doJSON(t, s, http.MethodPost, "/api/locations", payload)
+		if code != http.StatusBadRequest {
+			t.Errorf("payload %v should be rejected, got %d", payload, code)
+		}
+	}
+
+	code, _ = doJSON(t, s, http.MethodDelete, "/api/locations/"+strconv.FormatInt(int64(id), 10), nil)
+	if code != http.StatusOK {
+		t.Fatalf("delete => %d", code)
+	}
+	_, listed = doJSON(t, s, http.MethodGet, "/api/locations", nil)
+	if items, _ = listed["items"].([]any); len(items) != 0 {
+		t.Fatalf("location not deleted: %v", listed)
+	}
+	code, _ = doJSON(t, s, http.MethodDelete, "/api/locations/9999", nil)
+	if code != http.StatusNotFound {
+		t.Fatalf("deleting unknown id => %d", code)
 	}
 }

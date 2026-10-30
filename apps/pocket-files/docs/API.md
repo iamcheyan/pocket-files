@@ -75,6 +75,14 @@ Workers stream in 256 KiB buffers and persist progress (`bytes_done,total_bytes,
 - `GET /api/settings` → `{mode:"mock", privacy_mode:false, ...persistedKeys}`.
 - `PUT /api/settings` body: a JSON object; each key is persisted and echoed back in `GET`. `mode` and `privacy_mode` are computed and not persisted.
 
+## Pinned locations
+
+- `GET /api/locations` → `{items:[{id,name,storage_id,uri}]}`.
+- `POST /api/locations` body `{name,storage_id,uri}` → 201 with the stored row. The URI must resolve inside the storage root; `..`, absolute paths, unknown storage, missing directories and empty names → 400 `invalid_location`. A leading/trailing `/` is normalized away; an empty URI pins the storage root.
+- `DELETE /api/locations/{id}` → 200, or 404 when the id is unknown.
+
+Pins persist in `custom_locations` and drive the sidebar's PINNED section.
+
 ## Virtual views
 
 `GET /api/views/{books|music|videos|games|downloads|recent|favorites}` → `{view,items}`.

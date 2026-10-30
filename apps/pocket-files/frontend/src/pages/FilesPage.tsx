@@ -19,6 +19,7 @@ import {
   Move,
   Music,
   Pencil,
+  Pin,
   SquareCheck,
   Star,
   Trash,
@@ -226,6 +227,19 @@ export function FilesPage({
     }
   };
 
+  // Pin the current folder so it appears in the sidebar. The API stores a
+  // provider-relative URI and rejects paths that escape the storage root.
+  const pinCurrentFolder = async () => {
+    const label = path === '' ? storageName : path.split('/').pop() ?? path;
+    try {
+      await api.addLocation({ name: label, storage_id: storageId, uri: path });
+      setNotice(t('filesPinned'));
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : t('filesOperationFailed');
+      setNotice(`${t('filesOperationFailed')}: ${message}`);
+    }
+  };
+
   const createFolder = async () => {
     const name = window.prompt(t('filesNewFolder'));
     if (!name) return;
@@ -329,6 +343,9 @@ export function FilesPage({
           <span className="toolbar-count">{t('commonItems', { n: total })}</span>
           <button type="button" className="soft" onClick={() => void createFolder()} data-nav>
             <FolderPlus aria-hidden /> {t('filesNewFolder')}
+          </button>
+          <button type="button" className="soft" onClick={() => void pinCurrentFolder()} data-nav>
+            <Pin aria-hidden /> {t('filesPin')}
           </button>
         </div>
 

@@ -34,6 +34,7 @@ export interface Strings {
   navOverview: string;
   navFiles: string;
   navSearch: string;
+  navPinned: string;
   navTransfers: string;
   navFavorites: string;
   navRecents: string;
@@ -103,6 +104,8 @@ export interface Strings {
   filesUndone: string;
   filesRename: string;
   filesPreview: string;
+  filesPin: string;
+  filesPinned: string;
   previewUnavailable: string;
   previewUnsupported: string;
   previewBookTitle: string;
@@ -260,6 +263,7 @@ export const en: Strings = {
   navOverview: 'Overview',
   navFiles: 'Files',
   navSearch: 'Search',
+  navPinned: 'PINNED',
   navTransfers: 'Transfers',
   navFavorites: 'Favorites',
   navRecents: 'Recents',
@@ -326,6 +330,8 @@ export const en: Strings = {
   filesUndone: 'Deletion undone',
   filesRename: 'Rename',
   filesPreview: 'Preview',
+  filesPin: 'Pin folder',
+  filesPinned: 'Folder pinned to the sidebar.',
   previewUnavailable: 'Preview is unavailable for this file.',
   previewUnsupported: 'No in-browser preview for this file type.',
   previewBookTitle: 'Reader formats',
@@ -475,6 +481,7 @@ export const zh: Strings = {
   navOverview: '概览',
   navFiles: '文件',
   navSearch: '搜索',
+  navPinned: '固定位置',
   navTransfers: '传输',
   navFavorites: '收藏',
   navRecents: '最近',
@@ -541,6 +548,8 @@ export const zh: Strings = {
   filesUndone: '已撤销删除',
   filesRename: '重命名',
   filesPreview: '预览',
+  filesPin: '固定文件夹',
+  filesPinned: '文件夹已固定到侧栏。',
   previewUnavailable: '此文件无法预览。',
   previewUnsupported: '此文件类型没有浏览器内预览。',
   previewBookTitle: '阅读器格式',
@@ -690,6 +699,7 @@ export const ja: Strings = {
   navOverview: '概要',
   navFiles: 'ファイル',
   navSearch: '検索',
+  navPinned: 'ピン留め',
   navTransfers: '転送',
   navFavorites: 'お気に入り',
   navRecents: '最近',
@@ -756,6 +766,8 @@ export const ja: Strings = {
   filesUndone: '削除を元に戻しました',
   filesRename: '名前を変更',
   filesPreview: 'プレビュー',
+  filesPin: 'フォルダをピン留め',
+  filesPinned: 'フォルダをサイドバーにピン留めしました。',
   previewUnavailable: 'このファイルはプレビューできません。',
   previewUnsupported: 'この形式はブラウザ内プレビューに対応していません。',
   previewBookTitle: 'リーダー形式',

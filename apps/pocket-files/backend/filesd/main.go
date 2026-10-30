@@ -109,6 +109,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "apps":
 			s.handleApps(w, r, parts)
 			return
+		case "locations":
+			s.handlePinnedLocations(w, r, parts)
+			return
 		case "providers":
 			s.handleCapabilities(w, r)
 			return

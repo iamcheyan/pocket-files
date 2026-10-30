@@ -62,6 +62,10 @@ check apps-maps-reader  bash -c "curl -fsS '$base/api/apps/open?storage_id=inter
 check apps-unknown-type  bash -c "curl -fsS '$base/api/apps/open?storage_id=internal&path=Downloads/Example%20Archive.zip' | grep -q 'no_app_for_type'"
 check apps-status       bash -c "curl -fsS '$base/api/apps' | grep -q 'app_registry_not_configured'"
 check providers-caps    bash -c "curl -fsS '$base/api/providers' | grep -q 'webdav'"
+check pin-create        bash -c "curl -fsS -X POST -H 'content-type: application/json' -d '{\"name\":\"SmokeDocs\",\"storage_id\":\"internal\",\"uri\":\"Documents\"}' '$base/api/locations' | grep -q 'SmokeDocs'"
+check pin-list          bash -c "curl -fsS '$base/api/locations' | grep -q 'SmokeDocs'"
+check pin-escape        bash -c "test \$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -d '{\"name\":\"x\",\"storage_id\":\"internal\",\"uri\":\"../../etc\"}' '$base/api/locations') = 400"
+check pin-delete        bash -c "id=\$(curl -fsS '$base/api/locations' | sed -E 's/.*\"id\":([0-9]+),\"name\":\"SmokeDocs\".*/\1/'); test \$(curl -s -o /dev/null -w '%{http_code}' -X DELETE '$base/api/locations/'\$id) = 200"
 check unimplemented-501 bash -c "test \$(curl -s -o /dev/null -w '%{http_code}' -X POST '$base/api/storage/internal/mount') = 501"
 check unknown-route     bash -c "test \$(curl -s -o /dev/null -w '%{http_code}' '$base/api/nope') = 404"
 

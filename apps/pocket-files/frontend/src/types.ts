@@ -176,6 +176,17 @@ export interface BulkResponse {
   results: BulkOperationResult[];
 }
 
+export interface PinnedLocation {
+  id: number;
+  name: string;
+  storage_id: string;
+  uri: string;
+}
+
+export interface PinnedResponse {
+  items: PinnedLocation[];
+}
+
 export interface DownloadsResponse {
   status: string;
   source: string;

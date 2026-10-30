@@ -34,6 +34,7 @@ import { LibrariesPage } from './pages/LibrariesPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { usePreferences } from './hooks/usePreferences';
+import { useApiResource } from './hooks/useApiResource';
 import { useKeyboardNav } from './hooks/useKeyboardNav';
 import type { LibraryKey, PageId } from './types';
 
@@ -141,6 +142,8 @@ function App() {
     [list],
   );
 
+  const pinned = useApiResource(() => api.locations(), []);
+
   const navItems: Array<{ id: PageId; label: string; icon: typeof Folder }> = [
     { id: 'overview', label: t('navOverview'), icon: LayoutGrid },
     { id: 'files', label: t('navFiles'), icon: Folder },
@@ -215,6 +218,24 @@ function App() {
             <span>{t(LIBRARY_LABEL[key])}</span>
           </button>
         ))}
+
+        {pinned.data && pinned.data.items.length > 0 && (
+          <>
+            <div className="nav-label library-label">{t('navPinned')}</div>
+            {pinned.data.items.map((location) => (
+              <button
+                type="button"
+                key={location.id}
+                className="nav-item"
+                onClick={() => goFiles(location.storage_id, location.uri)}
+                data-nav
+              >
+                <Star aria-hidden />
+                <span>{location.name}</span>
+              </button>
+            ))}
+          </>
+        )}
 
         <div className="nav-label library-label">{t('navOverview')}</div>
         {navItems.map(({ id, label, icon: Icon }) => (

@@ -7,6 +7,8 @@ import type {
   AnalyticsData,
   AppLaunchResult,
   DownloadsResponse,
+  PinnedLocation,
+  PinnedResponse,
   BulkRequest,
   BulkResponse,
   FavoritesResponse,
@@ -200,6 +202,22 @@ export const api = {
   // Ask PJAppRegistry (through filesd) to open the entry. A registry that is not
   // configured answers status:"unavailable" rather than throwing.
   /// downloadsd-backed download state; throws ApiError(503) when unavailable.
+  /// User-pinned folder shortcuts (provider-relative URIs only).
+  locations(): Promise<PinnedResponse> {
+    return request<PinnedResponse>('/api/locations');
+  },
+
+  addLocation(payload: { name: string; storage_id: string; uri: string }): Promise<PinnedLocation> {
+    return request<PinnedLocation>('/api/locations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  removeLocation(id: number): Promise<void> {
+    return request<void>(`/api/locations/${id}`, { method: 'DELETE' });
+  },
+
   downloads(): Promise<DownloadsResponse> {
     return request<DownloadsResponse>('/api/downloads');
   },
