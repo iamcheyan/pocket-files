@@ -19,9 +19,10 @@ cd apps/pocket-files/frontend
 bun install && bunx vite --host 127.0.0.1 --port 5180 --strictPort &
 
 # 3. Capture
-NODE_PATH=/home/tetsuya/.bun/install/global/node_modules \
-PUPPETEER_CORE=/home/tetsuya/.bun/install/global/node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js \
-CHROME_PATH=/run/current-system/sw/bin/chromium \
+# puppeteer-core is resolved from the global bun module directory
+NODE_PATH=$(bun pm bin -g)/../ \
+PUPPETEER_CORE=$(bun pm bin -g)/../puppeteer-core/lib/puppeteer/puppeteer-core.js \
+CHROME_PATH=/usr/bin/google-chrome \
 node apps/pocket-files/tests/capture-screenshots.mjs \
   http://127.0.0.1:5180 apps/pocket-files/docs/screenshots
 ```
@@ -36,26 +37,26 @@ a misleading name.
 
 | File | Resolution | Theme / profile | State | SHA-256 (12) |
 |---|---|---|---|---|
-| `overview-desktop-1600x900.png` | 1600×900 | light / desktop | Storage Overview | `6ea7f312b47c` |
-| `internal-1280x720.png` | 1280×720 | light / desktop | Internal root | `3d5342807ff7` |
-| `tf-a-1280x720.png` | 1280×720 | light / desktop | TF-A root | `237a3f3ffa8d` |
-| `tf-b-1280x720.png` | 1280×720 | light / desktop | TF-B root | `35b2d47d6695` |
-| `usb-1280x720.png` | 1280×720 | light / desktop | USB root | `b7eb54d5f501` |
-| `file-browser-1280x720.png` | 1280×720 | light / desktop | Internal/Documents | `40852927b83d` |
-| `preview-image-1280x720.png` | 1280×720 | light / desktop | Image preview (backend stream) | `f243dbc58665` |
-| `search-1280x720.png` | 1280×720 | light / desktop | Search "Welcome" results | `ce4523d3a84b` |
-| `favorites-1280x720.png` | 1280×720 | light / desktop | Favorites | `9a9473f93fa7` |
-| `recents-1280x720.png` | 1280×720 | light / desktop | Recents | `e7a200e44031` |
-| `settings-1280x720.png` | 1280×720 | light / desktop | Settings: theme, language, profile, density | `5e29a7f53d84` |
-| `copy-progress-1280x720.png` | 1280×720 | light / desktop | Transfers with live queue | `a63474a7e96e` |
-| `copy-progress-paused-1280x720.png` | 1280×720 | light / desktop | Transfers, paused job | `e10c8ce0bb20` |
-| `overview-dark-1280x720.png` | 1280×720 | dark / desktop | Storage Overview | `676fd0f996d3` |
-| `overview-oled-1280x720.png` | 1280×720 | OLED (#000) / desktop | Storage Overview | `adc60d09aaa2` |
-| `overview-light-1280x720.png` | 1280×720 | light / desktop | Storage Overview | `dc67966aeafb` |
-| `overview-handheld-480x320.png` | 480×320 | system / handheld | Storage Overview | `49195d65e351` |
-| `overview-320x240.png` | 320×240 | system / handheld | Storage Overview (smallest) | `44f589034f16` |
-| `overview-720x720.png` | 720×720 | system / reader | Storage Overview | `acc8ffea9b11` |
-| `overview-desktop-1920x1080.png` | 1920×1080 | system / desktop | Storage Overview | `49b82a0788b7` |
+| `overview-desktop-1600x900.png` | 1600×900 | light / desktop | Storage Overview | `b96b69cf63b4` |
+| `internal-1280x720.png` | 1280×720 | light / desktop | Internal root | `b0b49b495913` |
+| `tf-a-1280x720.png` | 1280×720 | light / desktop | TF-A root | `bb8eb9edf4bc` |
+| `tf-b-1280x720.png` | 1280×720 | light / desktop | TF-B root | `230d8b5e8705` |
+| `usb-1280x720.png` | 1280×720 | light / desktop | USB root | `30304586a0ed` |
+| `file-browser-1280x720.png` | 1280×720 | light / desktop | Internal/Documents | `c2f2d74340e0` |
+| `preview-image-1280x720.png` | 1280×720 | light / desktop | Image preview (backend stream) | `209ec6e03011` |
+| `search-1280x720.png` | 1280×720 | light / desktop | Search "Welcome" results | `95b5f741fbd7` |
+| `favorites-1280x720.png` | 1280×720 | light / desktop | Favorites | `ff9fa0dc5198` |
+| `recents-1280x720.png` | 1280×720 | light / desktop | Recents | `3c7796af14e6` |
+| `settings-1280x720.png` | 1280×720 | light / desktop | Settings: theme, language, profile, density | `6d633670c182` |
+| `copy-progress-1280x720.png` | 1280×720 | light / desktop | Transfers with live queue | `368ef655906b` |
+| `copy-progress-paused-1280x720.png` | 1280×720 | light / desktop | Transfers, paused job | `fd891d634e4d` |
+| `overview-dark-1280x720.png` | 1280×720 | dark / desktop | Storage Overview | `318cfb2011da` |
+| `overview-oled-1280x720.png` | 1280×720 | OLED (#000) / desktop | Storage Overview | `41c1ff8e1b62` |
+| `overview-light-1280x720.png` | 1280×720 | light / desktop | Storage Overview | `bf209c8e5c26` |
+| `overview-handheld-480x320.png` | 480×320 | system / handheld | Storage Overview | `e266f52cafb5` |
+| `overview-320x240.png` | 320×240 | system / handheld | Storage Overview (smallest) | `6cb9b34e1230` |
+| `overview-720x720.png` | 720×720 | system / reader | Storage Overview | `34c9bf390e8a` |
+| `overview-desktop-1920x1080.png` | 1920×1080 | system / desktop | Storage Overview | `023528a76647` |
 
 `captures.json` holds the same matrix in machine-readable form (width, height,
 theme, resolved profile, mock flag).

@@ -30,6 +30,14 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
+const runtimeErrors = [];
+page.on('console', (message) => {
+  if (message.type() === 'error') runtimeErrors.push(`console: ${message.text()}`);
+});
+page.on('pageerror', (error) => runtimeErrors.push(`pageerror: ${error.message}`));
+page.on('response', (response) => {
+  if (response.status() >= 400) runtimeErrors.push(`http ${response.status()}: ${response.url()}`);
+});
 
 const settle = (ms = 700) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -199,19 +207,19 @@ if (queued.status !== 201) throw new Error(`transfer queue rejected: ${JSON.stri
 // Pause immediately: local temporary storage finishes a large copy in a few
 // hundred milliseconds, so the running window is too short to photograph
 // reliably. Pausing first gives a genuine paused job with real byte totals.
-const pausedState = await page.evaluate(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  const body = await (await fetch('/api/transfers')).json();
-  const job = (body.items ?? []).find((entry) =>
-    ['queued', 'running', 'paused'].includes(String(entry.status)),
-  );
-  if (!job) return 'no-active-job';
-  await fetch(`/api/transfers/${job.id}/pause`, { method: 'POST' });
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  const after = await (await fetch('/api/transfers')).json();
-  const updated = (after.items ?? []).find((entry) => entry.id === job.id);
-  return updated ? String(updated.status) : 'job-vanished';
-});
+const pausedState = await page.evaluate(async (jobId) => {
+  // Pause the job we just created by id instead of racing the worker: a local
+  // copy of the large sample can finish before a status poll returns.
+  if (!jobId) return 'no-job-id';
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const response = await fetch(`/api/transfers/${jobId}/pause`, { method: 'POST' });
+    const body = await response.json().catch(() => ({}));
+    const status = String(body.status ?? '');
+    if (status === 'paused' || status === 'running' || status === 'completed') return status;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return 'pause-failed';
+}, queued.body?.id);
 if (!['paused', 'running', 'completed'].includes(pausedState)) {
   throw new Error(`unexpected transfer state after pause: ${pausedState}`);
 }
@@ -313,4 +321,7 @@ await capture('overview-desktop-1920x1080.png', { width: 1920, height: 1080 });
 await page.close();
 await browser.close();
 await writeFile(path.join(outDir, 'captures.json'), `${JSON.stringify(captures, null, 2)}\n`);
+if (runtimeErrors.length) {
+  throw new Error(`console/HTTP errors during capture:\n${[...new Set(runtimeErrors)].join('\n')}`);
+}
 console.log(`captured ${captures.length} screenshots into ${outDir}`);
