@@ -33,6 +33,7 @@ export interface Strings {
   navLibraries: string;
   navOverview: string;
   navFiles: string;
+  navSearch: string;
   navTransfers: string;
   navFavorites: string;
   navRecents: string;
@@ -214,6 +215,9 @@ export interface Strings {
   settingsProfileReader: string;
   settingsProfileDap: string;
   settingsProfileDetail: string;
+  settingsDpi: string;
+  settingsDpiHint: string;
+  settingsDpiAuto: string;
 }
 
 export const en: Strings = {
@@ -244,6 +248,7 @@ export const en: Strings = {
   navLibraries: 'LIBRARIES',
   navOverview: 'Overview',
   navFiles: 'Files',
+  navSearch: 'Search',
   navTransfers: 'Transfers',
   navFavorites: 'Favorites',
   navRecents: 'Recents',
@@ -414,6 +419,9 @@ export const en: Strings = {
   settingsProfileReader: 'Reader',
   settingsProfileDap: 'DAP',
   settingsProfileDetail: '{profile} · Auto {label} · {dpi} dpi',
+  settingsDpi: 'Density (DPI)',
+  settingsDpiHint: 'Auto follows the display pixel ratio. Pin a scale to match a device exactly.',
+  settingsDpiAuto: 'Auto',
 };
 
 export const zh: Strings = {
@@ -444,6 +452,7 @@ export const zh: Strings = {
   navLibraries: '资料库',
   navOverview: '概览',
   navFiles: '文件',
+  navSearch: '搜索',
   navTransfers: '传输',
   navFavorites: '收藏',
   navRecents: '最近',
@@ -614,6 +623,9 @@ export const zh: Strings = {
   settingsProfileReader: '阅读器',
   settingsProfileDap: '播放器',
   settingsProfileDetail: '{profile} · 自动 {label} · {dpi} dpi',
+  settingsDpi: '密度（DPI）',
+  settingsDpiHint: '自动模式跟随显示像素比；也可固定比例以精确匹配设备。',
+  settingsDpiAuto: '自动',
 };
 
 export const ja: Strings = {
@@ -644,6 +656,7 @@ export const ja: Strings = {
   navLibraries: 'ライブラリ',
   navOverview: '概要',
   navFiles: 'ファイル',
+  navSearch: '検索',
   navTransfers: '転送',
   navFavorites: 'お気に入り',
   navRecents: '最近',
@@ -814,6 +827,9 @@ export const ja: Strings = {
   settingsProfileReader: 'リーダー',
   settingsProfileDap: 'DAP',
   settingsProfileDetail: '{profile} · 自動 {label} · {dpi} dpi',
+  settingsDpi: '密度（DPI）',
+  settingsDpiHint: '自動は表示のピクセル比に従います。固定すると端末に正確に合わせられます。',
+  settingsDpiAuto: '自動',
 };
 
 export const LANGS = ['en', 'zh', 'ja'] as const;

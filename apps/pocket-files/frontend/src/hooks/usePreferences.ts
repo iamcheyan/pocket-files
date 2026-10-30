@@ -11,6 +11,10 @@ export type ProfilePreference = 'auto' | DeviceProfile;
 export type DpiToken = '1x' | '1.5x' | '2x' | '3x';
 
 export const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark', 'oled'];
+export const DPI_TOKENS: readonly DpiToken[] = ['1x', '1.5x', '2x', '3x'];
+export type DpiPreference = 'auto' | DpiToken;
+export const DPI_PREFERENCES: readonly DpiPreference[] = ['auto', ...DPI_TOKENS];
+
 export const PROFILES: readonly ProfilePreference[] = [
   'auto',
   'desktop',
@@ -22,6 +26,7 @@ export const PROFILES: readonly ProfilePreference[] = [
 const THEME_KEY = 'pocket-files-theme';
 const LANG_KEY = 'pocket-files-lang';
 const PROFILE_KEY = 'pocket-files-profile';
+const DPI_KEY = 'pocket-files-dpi';
 
 function readStored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
@@ -80,6 +85,9 @@ export interface Preferences {
   setProfile: (profile: ProfilePreference) => void;
   resolvedProfile: DeviceProfile;
   dpi: DpiToken;
+  /** `auto` follows devicePixelRatio; an explicit token pins the density. */
+  dpiPreference: DpiPreference;
+  setDpiPreference: (value: DpiPreference) => void;
 }
 
 export function usePreferences(): Preferences {
@@ -94,12 +102,16 @@ export function usePreferences(): Preferences {
     width: window.innerWidth,
     height: window.innerHeight,
   }));
-  const [dpi, setDpi] = useState<DpiToken>(detectDpi);
+  const [dpiPreference, setDpiPreferenceState] = useState<DpiPreference>(() =>
+    readStored<DpiPreference>(DPI_KEY, DPI_PREFERENCES, 'auto'),
+  );
+  const [detectedDpi, setDetectedDpi] = useState<DpiToken>(detectDpi);
+  const dpi: DpiToken = dpiPreference === 'auto' ? detectedDpi : dpiPreference;
 
   useEffect(() => {
     const onResize = () => {
       setViewport({ width: window.innerWidth, height: window.innerHeight });
-      setDpi(detectDpi());
+      setDetectedDpi(detectDpi());
     };
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
@@ -138,6 +150,15 @@ export function usePreferences(): Preferences {
     }
   }, [theme, resolvedProfile, dpi, profile, lang]);
 
+  const setDpiPreference = useCallback((next: DpiPreference) => {
+    setDpiPreferenceState(next);
+    try {
+      window.localStorage.setItem(DPI_KEY, next);
+    } catch {
+      // Storage may be blocked; keep the in-memory value.
+    }
+  }, []);
+
   const setTheme = useCallback((next: ThemePreference) => {
     setThemeState(next);
     try {
@@ -165,5 +186,16 @@ export function usePreferences(): Preferences {
     }
   }, []);
 
-  return { theme, setTheme, lang, setLang, profile, setProfile, resolvedProfile, dpi };
+  return {
+    theme,
+    setTheme,
+    lang,
+    setLang,
+    profile,
+    setProfile,
+    resolvedProfile,
+    dpi,
+    dpiPreference,
+    setDpiPreference,
+  };
 }

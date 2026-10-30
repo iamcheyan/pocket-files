@@ -1,9 +1,9 @@
 [
   {
-    "file": "docs/screenshots/overview-desktop-1280x720.png",
-    "width": 1280,
-    "height": 720,
-    "theme": "system",
+    "file": "docs/screenshots/overview-desktop-1600x900.png",
+    "width": 1600,
+    "height": 900,
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -11,7 +11,7 @@
     "file": "docs/screenshots/internal-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -19,7 +19,7 @@
     "file": "docs/screenshots/tf-a-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -27,7 +27,7 @@
     "file": "docs/screenshots/tf-b-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -35,7 +35,7 @@
     "file": "docs/screenshots/usb-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -43,7 +43,7 @@
     "file": "docs/screenshots/file-browser-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -51,7 +51,7 @@
     "file": "docs/screenshots/search-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -59,7 +59,7 @@
     "file": "docs/screenshots/favorites-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -67,7 +67,7 @@
     "file": "docs/screenshots/recents-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -75,7 +75,7 @@
     "file": "docs/screenshots/settings-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -83,7 +83,7 @@
     "file": "docs/screenshots/copy-progress-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -91,7 +91,7 @@
     "file": "docs/screenshots/copy-progress-paused-1280x720.png",
     "width": 1280,
     "height": 720,
-    "theme": "system",
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -104,18 +104,18 @@
     "mock": true
   },
   {
-    "file": "docs/screenshots/overview-light-1280x720.png",
-    "width": 1280,
-    "height": 720,
-    "theme": "light",
-    "profile": "desktop",
-    "mock": true
-  },
-  {
     "file": "docs/screenshots/overview-oled-1280x720.png",
     "width": 1280,
     "height": 720,
     "theme": "oled",
+    "profile": "desktop",
+    "mock": true
+  },
+  {
+    "file": "docs/screenshots/overview-light-1280x720.png",
+    "width": 1280,
+    "height": 720,
+    "theme": "light",
     "profile": "desktop",
     "mock": true
   },
@@ -141,14 +141,6 @@
     "height": 720,
     "theme": "system",
     "profile": "reader",
-    "mock": true
-  },
-  {
-    "file": "docs/screenshots/overview-1280x720.png",
-    "width": 1280,
-    "height": 720,
-    "theme": "system",
-    "profile": "desktop",
     "mock": true
   },
   {

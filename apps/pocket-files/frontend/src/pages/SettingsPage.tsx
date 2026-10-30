@@ -4,8 +4,10 @@
 import type { TFunction } from '../i18n';
 import { langNames, LANGS, type Lang } from '../i18n';
 import {
+  DPI_PREFERENCES,
   PROFILES,
   THEMES,
+  type DpiPreference,
   type ProfilePreference,
   type ThemePreference,
 } from '../hooks/usePreferences';
@@ -42,6 +44,8 @@ interface SettingsPageProps {
   onProfileChange: (profile: ProfilePreference) => void;
   resolvedProfile: string;
   dpi: string;
+  dpiPreference: DpiPreference;
+  onDpiChange: (value: DpiPreference) => void;
 }
 
 export function SettingsPage({
@@ -54,6 +58,8 @@ export function SettingsPage({
   onProfileChange,
   resolvedProfile,
   dpi,
+  dpiPreference,
+  onDpiChange,
 }: SettingsPageProps) {
   return (
     <>
@@ -110,6 +116,22 @@ export function SettingsPage({
               data-nav
             >
               {t(PROFILE_LABEL[value])}
+            </button>
+          ))}
+        </div>
+        <h2>{t('settingsDpi')}</h2>
+        <p>{t('settingsDpiHint')}</p>
+        <div className="choices">
+          {DPI_PREFERENCES.map((value) => (
+            <button
+              type="button"
+              key={value}
+              className={dpiPreference === value ? 'choice selected' : 'choice'}
+              onClick={() => onDpiChange(value)}
+              aria-pressed={dpiPreference === value}
+              data-nav
+            >
+              {value === 'auto' ? t('settingsDpiAuto') : value}
             </button>
           ))}
         </div>

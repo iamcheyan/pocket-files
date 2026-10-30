@@ -41,30 +41,59 @@ const clickByText = async (label) => {
     target.click();
     return true;
   }, label);
+  if (!clicked) throw new Error(`navigation control "${label}" not found`);
   await settle();
   return clicked;
 };
 
 // Theme state is owned by the app; drive it through the Settings buttons so the
 // captured image matches what a user sees, then return to the target page.
+// Guards against capturing the previous page because a navigation did not land.
+const requireHeading = async (expected) => {
+  const heading = await page.evaluate(() => document.querySelector('h1')?.textContent ?? '');
+  if (!heading.toLowerCase().includes(expected.toLowerCase())) {
+    throw new Error(`expected heading "${expected}", page shows "${heading}"`);
+  }
+};
+
 const setTheme = async (themeLabel) => {
   await clickByText('Settings');
+  await requireHeading('Settings');
   const applied = await page.evaluate((wanted) => {
-    const buttons = Array.from(document.querySelectorAll('.choice, button'));
-    const target = buttons.find((node) => (node.textContent ?? '').trim().toLowerCase() === wanted);
+    const target = Array.from(document.querySelectorAll('.choice')).find(
+      (node) => (node.textContent ?? '').trim().toLowerCase() === wanted,
+    );
     if (!target) return false;
     target.click();
     return true;
   }, themeLabel);
   if (!applied) throw new Error(`theme control ${themeLabel} not found`);
-  await settle(400);
+  await settle(500);
+  const actual = await page.evaluate(() => document.documentElement.dataset.theme ?? '');
+  const expected = themeLabel === 'auto' ? 'system' : themeLabel;
+  if (actual !== expected) {
+    throw new Error(`theme "${themeLabel}" did not apply: data-theme="${actual}"`);
+  }
 };
 
 const captures = [];
+// Every capture is preceded by a state check so a stale page can never be saved
+// under a misleading filename.
+const BASE_VIEWPORT = { width: 1280, height: 720, deviceScaleFactor: 1 };
+
 const capture = async (name, viewport) => {
-  if (viewport) {
-    await page.setViewport({ ...viewport, deviceScaleFactor: 1 });
-    await settle(500);
+  // Always reset to an explicit viewport so the saved pixels match the filename.
+  await page.setViewport({ ...(viewport ?? BASE_VIEWPORT), deviceScaleFactor: 1 });
+  await settle(viewport ? 500 : 200);
+  const suffix = /-(\d+)x(\d+)\.png$/.exec(name);
+  if (suffix) {
+    const actual = await page.evaluate(
+      () => `${window.innerWidth}x${window.innerHeight}`,
+    );
+    const expected = `${suffix[1]}x${suffix[2]}`;
+    if (actual !== expected) {
+      throw new Error(`${name}: viewport ${actual} does not match filename ${expected}`);
+    }
   }
   await page.screenshot({ path: path.join(outDir, name) });
   const state = await page.evaluate(() => ({
@@ -134,9 +163,10 @@ await page.evaluateOnNewDocument(() => {
 await page.goto(baseUrl, { waitUntil: 'networkidle0' });
 await settle(1200);
 
-await setTheme('system');
+await setTheme('light');
 await clickByText('Overview');
-await capture('overview-desktop-1280x720.png');
+await requireHeading('Storage Overview');
+await capture('overview-desktop-1600x900.png', { width: 1600, height: 900 });
 
 for (const [device, file] of [
   ['Internal', 'internal-1280x720.png'],
@@ -186,17 +216,32 @@ if (!['paused', 'running', 'completed'].includes(pausedState)) {
   throw new Error(`unexpected transfer state after pause: ${pausedState}`);
 }
 await clickByText('Search');
-await page.type('.search input', 'Notes');
-await settle(900);
+await requireHeading('Search');
+await page.evaluate(() => {
+  const input = document.querySelector('.page-body input[type="search"], .page-body input');
+  if (!input) return;
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  setter?.call(input, 'Welcome');
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.closest('form')?.requestSubmit();
+});
+await settle(1200);
+const searchCount = await page.evaluate(
+  () => document.querySelectorAll('.file-row').length,
+);
+if (searchCount === 0) throw new Error('search capture produced no results');
 await capture('search-1280x720.png');
 
 await clickByText('Favorites');
+await requireHeading('Favorites');
 await capture('favorites-1280x720.png');
 
 await clickByText('Recents');
+await requireHeading('Recents');
 await capture('recents-1280x720.png');
 
 await clickByText('Settings');
+await requireHeading('Settings');
 await capture('settings-1280x720.png');
 
 // Transfers last: the paused job and completed jobs are both real queue state.
@@ -214,21 +259,23 @@ await page.evaluate(async () => {
 await settle(1200);
 await capture('copy-progress-paused-1280x720.png');
 
-await setTheme('dark');
-await clickByText('Overview');
-await capture('overview-dark-1280x720.png');
-
-await setTheme('light');
-await capture('overview-light-1280x720.png');
-
-await setTheme('oled');
-await capture('overview-oled-1280x720.png');
+for (const [theme, file] of [
+  ['dark', 'overview-dark-1280x720.png'],
+  ['oled', 'overview-oled-1280x720.png'],
+  ['light', 'overview-light-1280x720.png'],
+]) {
+  await setTheme(theme);
+  await clickByText('Overview');
+  await requireHeading('Storage Overview');
+  await capture(file);
+}
 
 await setTheme('system');
+await clickByText('Overview');
+await requireHeading('Storage Overview');
 await capture('overview-handheld-480x320.png', { width: 480, height: 320 });
 await capture('overview-320x240.png', { width: 320, height: 240 });
 await capture('overview-720x720.png', { width: 720, height: 720 });
-await capture('overview-1280x720.png', { width: 1280, height: 720 });
 await capture('overview-desktop-1920x1080.png', { width: 1920, height: 1080 });
 
 await page.close();

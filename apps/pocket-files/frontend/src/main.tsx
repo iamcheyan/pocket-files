@@ -144,6 +144,7 @@ function App() {
   const navItems: Array<{ id: PageId; label: string; icon: typeof Folder }> = [
     { id: 'overview', label: t('navOverview'), icon: LayoutGrid },
     { id: 'files', label: t('navFiles'), icon: Folder },
+    { id: 'search', label: t('navSearch'), icon: Search },
     { id: 'transfers', label: t('navTransfers'), icon: ArrowLeftRight },
     { id: 'favorites', label: t('navFavorites'), icon: Star },
     { id: 'recents', label: t('navRecents'), icon: Clock },
@@ -353,6 +354,8 @@ function App() {
               profile={prefs.profile}
               onProfileChange={prefs.setProfile}
               resolvedProfile={prefs.resolvedProfile}
+              dpiPreference={prefs.dpiPreference}
+              onDpiChange={prefs.setDpiPreference}
               dpi={prefs.dpi}
             />
           )}
