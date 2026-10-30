@@ -6,6 +6,7 @@
 import type {
   AnalyticsData,
   AppLaunchResult,
+  DownloadsResponse,
   BulkRequest,
   BulkResponse,
   FavoritesResponse,
@@ -194,6 +195,11 @@ export const api = {
 
   // Ask PJAppRegistry (through filesd) to open the entry. A registry that is not
   // configured answers status:"unavailable" rather than throwing.
+  /// downloadsd-backed download state; throws ApiError(503) when unavailable.
+  downloads(): Promise<DownloadsResponse> {
+    return request<DownloadsResponse>('/api/downloads');
+  },
+
   openInApp(storageId: string, path: string): Promise<AppLaunchResult> {
     return request<AppLaunchResult>(
       `/api/apps/open${query({ storage_id: storageId, path })}`,

@@ -54,6 +54,7 @@ check views-downloads   bash -c "curl -fsS '$base/api/views/downloads' | grep -q
 check analytics         bash -c "curl -fsS '$base/api/analytics?storage_id=internal' | grep -q 'category_counts'"
 check analytics-mock    bash -c "curl -fsS '$base/api/analytics?storage_id=internal' | grep -q '\"mock\":true'"
 check downloads-state   bash -c "test \$(curl -s -o /dev/null -w '%{http_code}' '$base/api/downloads') = 503"
+check downloads-reason  bash -c "curl -s '$base/api/downloads' | grep -q 'downloadsd_not_configured'"
 check apps-unavailable  bash -c "curl -fsS '$base/api/apps/open?storage_id=internal&path=Documents/Welcome.txt' | grep -q 'unavailable'"
 check apps-maps-reader  bash -c "curl -fsS '$base/api/apps/open?storage_id=internal&path=Books/Field%20Notes.pdf' | grep -q 'pocket-reader'"
 check apps-unknown-type  bash -c "curl -fsS '$base/api/apps/open?storage_id=internal&path=Downloads/Example%20Archive.zip' | grep -q 'no_app_for_type'"

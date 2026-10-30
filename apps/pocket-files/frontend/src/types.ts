@@ -176,6 +176,14 @@ export interface BulkResponse {
   results: BulkOperationResult[];
 }
 
+export interface DownloadsResponse {
+  status: string;
+  source: string;
+  reason?: string;
+  message?: string;
+  items?: Array<Record<string, unknown>>;
+}
+
 export interface AppLaunchResult {
   status: string;
   app?: string;

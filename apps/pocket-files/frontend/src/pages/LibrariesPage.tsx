@@ -41,10 +41,52 @@ export function LibrariesPage({ t, lang, initial, onOpenEntry }: LibrariesPagePr
   const [active, setActive] = useState<LibraryKey>(initial);
   const [previewing, setPreviewing] = useState<FileEntry | null>(null);
   const view = useApiResource(() => api.view(active), [active]);
+  // Downloads come from downloadsd, never from a Pocket Files download engine.
+  const downloads = useApiResource(() => api.downloads(), []);
   const items = view.data?.items ?? [];
 
   let body;
-  if (view.loading && !view.data) {
+  if (active === 'downloads') {
+    if (downloads.loading && !downloads.data) {
+      body = <LoadingState label={t('commonLoading')} />;
+    } else if (downloads.unavailable) {
+      body = (
+        <UnavailableState t={t} message={t('downloadsUnavailable')} onRetry={downloads.reload} />
+      );
+    } else if (items.length === 0) {
+      body = (
+        <EmptyState icon={<Download />} title={t('commonEmpty')} hint={t('downloadsEmpty')} />
+      );
+    } else {
+      body = (
+        <div className="file-list">
+          <div className="list-head">
+            <span>{t('filesName')}</span>
+            <span>{t('filesSize')}</span>
+            <span>{t('filesModified')}</span>
+            <span />
+          </div>
+          {items.map((entry) => (
+            <div
+              className="file-row"
+              key={entry.id}
+              tabIndex={0}
+              data-nav
+              onDoubleClick={() => onOpenEntry(entry.storage_id, entry.id)}
+            >
+              <span className="file-name">
+                <FileText aria-hidden />
+                {entry.name}
+              </span>
+              <span>{formatBytes(entry.size)}</span>
+              <span>{formatDate(entry.modified, lang)}</span>
+              <span />
+            </div>
+          ))}
+        </div>
+      );
+    }
+  } else if (view.loading && !view.data) {
     body = <LoadingState label={t('commonLoading')} />;
   } else if (view.unavailable) {
     body = (

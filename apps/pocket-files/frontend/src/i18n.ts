@@ -188,6 +188,8 @@ export interface Strings {
   librariesDownloads: string;
   librariesOpen: string;
   librariesUnavailable: string;
+  downloadsUnavailable: string;
+  downloadsEmpty: string;
   librariesNotImplemented: string;
 
   // Analytics
@@ -401,6 +403,8 @@ export const en: Strings = {
   librariesDownloads: 'Downloads',
   librariesOpen: 'Open',
   librariesUnavailable: 'Virtual libraries unavailable',
+  downloadsUnavailable: 'downloadsd is not available on this device.',
+  downloadsEmpty: 'downloadsd reports no downloads.',
   librariesNotImplemented: 'This library view is not available yet',
 
   analyticsTitle: 'Storage Analytics',
@@ -612,6 +616,8 @@ export const zh: Strings = {
   librariesDownloads: '下载',
   librariesOpen: '打开',
   librariesUnavailable: '虚拟资料库不可用',
+  downloadsUnavailable: '此设备上 downloadsd 不可用。',
+  downloadsEmpty: 'downloadsd 报告暂无下载。',
   librariesNotImplemented: '该资料库视图暂不可用',
 
   analyticsTitle: '存储分析',
@@ -823,6 +829,8 @@ export const ja: Strings = {
   librariesDownloads: 'ダウンロード',
   librariesOpen: '開く',
   librariesUnavailable: '仮想ライブラリを利用できません',
+  downloadsUnavailable: 'この端末では downloadsd を利用できません。',
+  downloadsEmpty: 'downloadsd にダウンロードはありません。',
   librariesNotImplemented: 'このライブラリビューはまだ利用できません',
 
   analyticsTitle: 'ストレージ分析',
