@@ -186,6 +186,10 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request, parts []str
 }
 
 func (s *Server) handleStorage(w http.ResponseWriter, r *http.Request, parts []string) {
+	if len(parts) == 3 && parts[2] == "detected" && r.Method == "GET" {
+		s.handleDetectedStorage(w, r)
+		return
+	}
 	if len(parts) == 2 && r.Method == "GET" {
 		d, _ := s.p.Discover(r.Context())
 		s.json(w, 200, map[string]any{"items": s.storageItems(d)})

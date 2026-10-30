@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -62,8 +63,23 @@ func (b *Backend) storageUsage(id string) (total, used, free int64, err error) {
 	if !ok {
 		return 0, 0, 0, fmt.Errorf("unknown storage")
 	}
+	if d.Mock {
+		// Mock volumes declare their own nominal capacity; reporting statfs here
+		// would attribute the development host's disk size to a fake device.
+		var sum int64
+		_ = filepath.WalkDir(d.Root, func(_ string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil || entry.IsDir() {
+				return nil
+			}
+			if info, statErr := entry.Info(); statErr == nil {
+				sum += info.Size()
+			}
+			return nil
+		})
+		return d.Total, sum, d.Total - sum, nil
+	}
 	if d.Root == "" {
-		return 0, 0, 0, fmt.Errorf("mock storage has no host root")
+		return 0, 0, 0, fmt.Errorf("storage has no accessible root")
 	}
 	var st syscall.Statfs_t
 	if e := syscall.Statfs(d.Root, &st); e != nil {
@@ -394,7 +410,7 @@ func (b *Backend) getView(ctx context.Context, name string) ([]map[string]any, e
 }
 
 func (b *Backend) viewByExts(ctx context.Context, exts map[string]bool) []map[string]any {
-	var out []map[string]any
+	out := []map[string]any{}
 	var walk func(id, rel string)
 	walk = func(id, rel string) {
 		items, e := b.p.Browse(ctx, id, rel)
@@ -417,7 +433,7 @@ func (b *Backend) viewByExts(ctx context.Context, exts map[string]bool) []map[st
 	return out
 }
 func (b *Backend) viewPath(ctx context.Context, rel string) []map[string]any {
-	var out []map[string]any
+	out := []map[string]any{}
 	for _, d := range b.p.devices {
 		items, e := b.p.Browse(ctx, d.ID, rel)
 		if e != nil {
@@ -523,68 +539,67 @@ type dirSize struct {
 }
 
 func (b *Backend) scanTree(storageID string) ([]Entry, map[string]int, []dirSize) {
-	var files []Entry
 	cats := map[string]int{}
-	var dirs []dirSize
 	dirSizes := map[string]int64{}
-	process := func(id string) {
-		var walk func(rel string)
-		walk = func(rel string) {
-			items, e := b.p.Browse(context.Background(), id, rel)
-			if e != nil {
-				return
-			}
-			for _, en := range items {
-				full := en.ID
-				if en.Kind == "directory" {
-					dirSizes[full] += en.Size
-					walk(full)
-				} else {
-					files = append(files, en)
-					dirSizes[strings.TrimSuffix(full, "/"+en.Name)] += en.Size
-					cats[categoryOf(en.Extension)]++
-				}
-			}
+	files := map[string]Entry{}
+	var walk func(id, rel string) int64
+	walk = func(id, rel string) int64 {
+		items, err := b.p.Browse(context.Background(), id, rel)
+		if err != nil {
+			return 0
 		}
-		walk("")
+		var total int64
+		for _, item := range items {
+			if item.Kind == "directory" {
+				total += walk(id, item.ID)
+				continue
+			}
+			files[id+":"+item.ID] = item
+			total += item.Size
+			cats[categoryOf(item.Extension)]++
+		}
+		if rel != "" {
+			dirSizes[id+"\x00"+rel] += total
+		}
+		return total
 	}
 	if storageID == "" {
 		for _, d := range b.p.devices {
-			process(d.ID)
+			walk(d.ID, "")
 		}
 	} else {
-		process(storageID)
+		walk(storageID, "")
 	}
-	for k, v := range dirSizes {
-		if v == 0 {
+	fileList := make([]Entry, 0, len(files))
+	for _, entry := range files {
+		fileList = append(fileList, entry)
+	}
+	dirs := make([]dirSize, 0, len(dirSizes))
+	for key, size := range dirSizes {
+		if size == 0 {
 			continue
 		}
-		parts := strings.SplitN(k, "/", 2)
-		sid := parts[0]
-		uri := k
-		if len(parts) > 1 {
-			uri = parts[1]
-		} else {
-			uri = ""
-		}
-		dirs = append(dirs, dirSize{storage: sid, uri: uri, size: v})
+		parts := strings.SplitN(key, "\x00", 2)
+		dirs = append(dirs, dirSize{storage: parts[0], uri: parts[1], size: size})
 	}
-	return files, cats, dirs
+	return fileList, cats, dirs
 }
 
+// categoryOf classifies a file for analytics and library views. Book formats are
+// checked before Documents so reader content is not hidden under Documents.
 func categoryOf(ext string) string {
 	ext = strings.ToLower(ext)
 	switch {
-	case ext == "pdf" || ext == "txt" || ext == "doc" || ext == "docx" || ext == "md" || ext == "odt":
-		return "Documents"
+	case ext == "pdf" || ext == "epub" || ext == "mobi" || ext == "azw" || ext == "azw3" || ext == "cbz" || ext == "cbr":
+		return "Books"
 	case musicExts[ext]:
 		return "Music"
 	case videoExts[ext]:
 		return "Videos"
 	case gameExts[ext]:
 		return "Games"
-	case bookExts[ext]:
-		return "Books"
+	case ext == "md" || ext == "doc" || ext == "docx" || ext == "odt" || ext == "txt":
+		return "Documents"
 	}
 	return "Other"
 }

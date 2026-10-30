@@ -36,6 +36,7 @@ export interface Strings {
   navTransfers: string;
   navFavorites: string;
   navRecents: string;
+  navAnalytics: string;
   navSettings: string;
   accountName: string;
   accountProfile: string;
@@ -141,6 +142,7 @@ export interface Strings {
   searchType: string;
   searchMinSize: string;
   searchMaxSize: string;
+  searchMaxSizeHint: string;
   searchUnavailable: string;
 
   // Favorites
@@ -203,6 +205,7 @@ export interface Strings {
   settingsProfileHandheld: string;
   settingsProfileReader: string;
   settingsProfileDap: string;
+  settingsProfileDetail: string;
 }
 
 export const en: Strings = {
@@ -236,6 +239,7 @@ export const en: Strings = {
   navTransfers: 'Transfers',
   navFavorites: 'Favorites',
   navRecents: 'Recents',
+  navAnalytics: 'Analytics',
   navSettings: 'Settings',
   accountName: 'Pocket User',
   accountProfile: 'Local profile',
@@ -335,6 +339,7 @@ export const en: Strings = {
   searchType: 'Type',
   searchMinSize: 'Min size',
   searchMaxSize: 'Max size',
+  searchMaxSizeHint: '∞',
   searchUnavailable: 'Search unavailable',
 
   favoritesTitle: 'Favorites',
@@ -392,6 +397,7 @@ export const en: Strings = {
   settingsProfileHandheld: 'Handheld',
   settingsProfileReader: 'Reader',
   settingsProfileDap: 'DAP',
+  settingsProfileDetail: '{profile} · Auto {label} · {dpi} dpi',
 };
 
 export const zh: Strings = {
@@ -425,6 +431,7 @@ export const zh: Strings = {
   navTransfers: '传输',
   navFavorites: '收藏',
   navRecents: '最近',
+  navAnalytics: '分析',
   navSettings: '设置',
   accountName: 'Pocket 用户',
   accountProfile: '本地账户',
@@ -524,6 +531,7 @@ export const zh: Strings = {
   searchType: '类型',
   searchMinSize: '最小大小',
   searchMaxSize: '最大大小',
+  searchMaxSizeHint: '∞',
   searchUnavailable: '搜索不可用',
 
   favoritesTitle: '收藏',
@@ -581,6 +589,7 @@ export const zh: Strings = {
   settingsProfileHandheld: '手持',
   settingsProfileReader: '阅读器',
   settingsProfileDap: '播放器',
+  settingsProfileDetail: '{profile} · 自动 {label} · {dpi} dpi',
 };
 
 export const ja: Strings = {
@@ -614,6 +623,7 @@ export const ja: Strings = {
   navTransfers: '転送',
   navFavorites: 'お気に入り',
   navRecents: '最近',
+  navAnalytics: '分析',
   navSettings: '設定',
   accountName: 'Pocket ユーザー',
   accountProfile: 'ローカルプロフィール',
@@ -713,6 +723,7 @@ export const ja: Strings = {
   searchType: '種類',
   searchMinSize: '最小サイズ',
   searchMaxSize: '最大サイズ',
+  searchMaxSizeHint: '∞',
   searchUnavailable: '検索を利用できません',
 
   favoritesTitle: 'お気に入り',
@@ -770,11 +781,14 @@ export const ja: Strings = {
   settingsProfileHandheld: 'ハンドヘルド',
   settingsProfileReader: 'リーダー',
   settingsProfileDap: 'DAP',
+  settingsProfileDetail: '{profile} · 自動 {label} · {dpi} dpi',
 };
 
-export const dictionaries = { en, zh, ja } as const;
+export const LANGS = ['en', 'zh', 'ja'] as const;
 
-export type Lang = keyof typeof dictionaries;
+export type Lang = (typeof LANGS)[number];
+
+export const dictionaries: Record<Lang, Strings> = { en, zh, ja };
 
 export const langNames: Record<Lang, string> = {
   en: 'English',
@@ -782,15 +796,14 @@ export const langNames: Record<Lang, string> = {
   ja: '日本語',
 };
 
-// Build-time / load-time key-parity assertion. Throws immediately if any
-// language is missing keys present in `en`, or defines keys `en` lacks.
+// Load-time key-parity assertion. Throws immediately if any language is
+// missing keys present in `en`, or defines keys `en` lacks.
 (() => {
-  const base = Object.keys(en).sort();
-  const baseSet = new Set(base);
-  for (const code of Object.keys(dictionaries) as Lang[]) {
-    const keys = Object.keys(dictionaries[code]).sort();
+  const base = Object.keys(en);
+  for (const code of LANGS) {
+    const keys = Object.keys(dictionaries[code]);
     const missing = base.filter((k) => !keys.includes(k));
-    const extra = keys.filter((k) => !baseSet.has(k));
+    const extra = keys.filter((k) => !base.includes(k));
     if (missing.length > 0 || extra.length > 0) {
       throw new Error(
         `i18n key parity failure for "${code}": missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`,
@@ -800,6 +813,8 @@ export const langNames: Record<Lang, string> = {
 })();
 
 export type TranslateParams = Record<string, string | number>;
+
+export type TFunction = (key: keyof Strings, params?: TranslateParams) => string;
 
 export function translate(
   lang: Lang,

@@ -1,1 +1,28 @@
-<!doctype html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#101114"/><title>Pocket Files</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+<!doctype html>
+<html lang="en" data-theme="system" data-profile="desktop" data-dpi="medium">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#101114" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Pocket Files</title>
+    <script>
+      // Apply the persisted theme/profile before first paint so dark and OLED
+      // sessions never flash a white page while React mounts.
+      (function () {
+        try {
+          var theme = localStorage.getItem('pocket-files-theme');
+          if (theme) document.documentElement.dataset.theme = theme;
+          var lang = localStorage.getItem('pocket-files-lang');
+          if (lang) document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang === 'ja' ? 'ja-JP' : 'en';
+        } catch (e) {
+          /* storage blocked; defaults apply */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

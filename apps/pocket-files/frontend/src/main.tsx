@@ -1,24 +1,395 @@
-import React, {useEffect, useState} from 'react';
-import {createRoot} from 'react-dom/client';
-import {HardDrive, Search, Folder, FileText, Music, Image, Star, Clock, ArrowLeftRight, Settings, Grid2X2, ChevronRight, MoreHorizontal, Plus, LayoutGrid, PanelLeftClose} from 'lucide-react';
-import './style.css';
+// Application shell: sidebar navigation, topbar, page routing and shared state.
+// Navigation is a plain discriminated union held in React state — no router
+// dependency (registry is offline) and no browser history assumptions.
 
-type Device = {id: string; name: string; kind: string; status: string; mock: boolean; total: number};
-type Entry = {id: string; storage_id: string; name: string; kind: string; size: number; modified: string};
-const labels: any = {
- en: {overview:'Storage Overview',files:'Files',transfers:'Transfers',favorites:'Favorites',recents:'Recents',settings:'Settings',storage:'STORAGE',libraries:'LIBRARIES',used:'used',search:'Search files and folders',name:'Name',size:'Size',modified:'Modified',mock:'MOCK STORAGE',empty:'This folder is empty'},
- zh: {overview:'存储概览',files:'文件',transfers:'传输',favorites:'收藏',recents:'最近',settings:'设置',storage:'存储设备',libraries:'资料库',used:'已用',search:'搜索文件和文件夹',name:'名称',size:'大小',modified:'修改时间',mock:'模拟存储',empty:'此文件夹为空'},
- ja: {overview:'ストレージ概要',files:'ファイル',transfers:'転送',favorites:'お気に入り',recents:'最近',settings:'設定',storage:'ストレージ',libraries:'ライブラリ',used:'使用済み',search:'ファイルとフォルダを検索',name:'名前',size:'サイズ',modified:'更新日時',mock:'モックストレージ',empty:'このフォルダは空です'}
-};
-function App(){
- const [devices,setDevices]=useState<Device[]>([]),[selected,setSelected]=useState('internal'),[items,setItems]=useState<Entry[]>([]),[page,setPage]=useState('overview'),[query,setQuery]=useState(''),[lang,setLang]=useState('en'),[theme,setTheme]=useState('system'),[path,setPath]=useState('');
- const t=labels[lang];
- useEffect(()=>{const savedTheme=localStorage.getItem('pocket-files-theme');if(savedTheme)setTheme(savedTheme);const onKey=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.querySelector<HTMLInputElement>('.search input')?.focus()}if(e.key==='Escape'){setQuery('');if(path)setPath(path.split('/').slice(0,-1).join('/'))}};document.addEventListener('keydown',onKey);return()=>document.removeEventListener('keydown',onKey)},[path]);
- useEffect(()=>{localStorage.setItem('pocket-files-theme',theme)},[theme]);
- useEffect(()=>{fetch('/api/storage').then(r=>r.json()).then(x=>setDevices(x.items||[])).catch(()=>setDevices([{id:'internal',name:'Internal',kind:'internal',status:'mock',mock:true,total:128e9},{id:'tf-a',name:'TF-A',kind:'tf',status:'mock',mock:true,total:64e9},{id:'tf-b',name:'TF-B',kind:'tf',status:'mock',mock:true,total:128e9},{id:'usb',name:'USB',kind:'usb',status:'mock',mock:true,total:256e9}]))},[]);
- useEffect(()=>{const u='/api/files?storage_id='+selected+'&path='+encodeURIComponent(path)+(query?'&q='+encodeURIComponent(query):'');fetch(u).then(r=>r.json()).then(x=>setItems(x.items||[])).catch(()=>setItems([]))},[selected,path,query]);
- const device=devices.find(d=>d.id===selected);
- const icon=(n:string)=>n==='Music'?<Music/>:n==='Images'?<Image/>:n==='Favorites'?<Star/>:n==='Recents'?<Clock/>:<Folder/>;
- return <main className={'app '+(theme==='oled'?'oled':'')}><aside className="sidebar"><div className="brand"><div className="brand-icon"><Grid2X2/></div><div><strong>Pocket Files</strong><small>Storage Manager</small></div><button className="ghost collapse"><PanelLeftClose/></button></div><div className="nav-label">{t.storage}</div>{devices.map(d=><button key={d.id} className={'nav-item '+(selected===d.id?'active':'')} onClick={()=>{setSelected(d.id);setPage('files');setPath('')}}><HardDrive/><span>{d.name}</span>{d.mock&&<i/>}</button>)}<div className="nav-label library-label">{t.libraries}</div>{[['overview',t.overview,<LayoutGrid/>],['files',t.files,<Folder/>],['transfers',t.transfers,<ArrowLeftRight/>],['favorites',t.favorites,<Star/>],['recents',t.recents,<Clock/>],['settings',t.settings,<Settings/>]].map(([id,name,ic]:any)=><button key={id} className={'nav-item '+(page===id?'active':'')} onClick={()=>setPage(id)}>{ic}<span>{name}</span></button>)}<div className="sidebar-bottom"><span className="avatar">P</span><div><strong>Pocket User</strong><small>Local profile</small></div><MoreHorizontal/></div></aside><section className="content"><header className="topbar"><div className="crumb"><span>{page==='overview'?t.overview:device?.name}</span>{page==='files'&&path&&<><ChevronRight/><span>{path}</span></>}</div><div className="top-actions"><label className="search"><Search/><input placeholder={t.search} value={query} onChange={e=>setQuery(e.target.value)}/><kbd>⌘ K</kbd></label><button className="round" onClick={()=>setTheme(theme==='oled'?'system':'oled')}>◐</button></div></header><div className="page-body">{page==='overview'?<><div className="welcome"><div><div className="eyebrow">YOUR DEVICES</div><h1>{t.overview}</h1><p>Manage files across all your connected storage.</p></div><button className="primary" onClick={()=>setPage('files')}><Plus/> Browse files</button></div><div className="device-grid">{devices.map((d,i)=><button className={'device-card card-'+i} key={d.id} onClick={()=>{setSelected(d.id);setPage('files')}}><div className="card-head"><div className={'drive-icon drive-'+i}><HardDrive/></div><span className="mock-badge">{t.mock}</span><MoreHorizontal/></div><h2>{d.name}</h2><p>{d.kind==='internal'?'System storage':d.kind==='tf'?'Removable · microSD':'Removable · USB'}</p><div className="meter"><span style={{width:(18+i*13)+'%'}}/></div><div className="capacity"><span>{(d.total*.18/1e9).toFixed(1)} GB {t.used}</span><span>{Math.round(d.total/1e9)} GB</span></div><div className="card-foot"><span className="dot"/> Ready <span className="card-open">Open <ChevronRight/></span></div></button>)}</div><div className="section-heading"><div><h2>Quick access</h2><p>Your frequently used locations</p></div><button className="text-btn">Edit locations</button></div><div className="quick-grid">{['Books','Music','Videos','ROMs','Documents','Downloads'].map(n=><button onClick={()=>{setSelected('internal');setPath(n);setPage('files')}} className="quick-card">{icon(n)}<span>{n}</span><ChevronRight/></button>)}</div><div className="notice"><span className="notice-icon">i</span><div><strong>Preview mode</strong><p>These are temporary mock storage devices. Connect real storage to browse your files.</p></div><span className="mock-badge">MOCK DATA</span></div></>:page==='files'?<><div className="welcome compact"><div><div className="eyebrow">{device?.mock?'MOCK STORAGE':device?.kind.toUpperCase()}</div><h1>{path||device?.name||t.files}</h1><p>{device?.name} · {path?'Folder':'Root folder'}</p></div><button className="primary" onClick={()=>{const n=prompt('New folder name');if(n)fetch('/api/folders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({storage_id:selected,path:path?path+'/'+n:n})}).then(()=>setPath(path))}}><Plus/> New folder</button></div><div className="file-toolbar"><button className="soft" onClick={()=>setPath(path.split('/').slice(0,-1).join('/'))}>← Back</button><span>{items.length} items</span><button className="soft"><LayoutGrid/></button></div><div className="file-list"><div className="list-head"><span>{t.name}</span><span>{t.size}</span><span>{t.modified}</span><span></span></div>{items.map(x=><button className="file-row" onDoubleClick={()=>x.kind==='directory'&&setPath(path?path+'/'+x.name:x.name)}><span className="file-name">{x.kind==='directory'?<Folder/>:<FileText/>}{x.name}</span><span>{x.kind==='directory'?'—':(x.size/1024).toFixed(1)+' KB'}</span><span>{new Date(x.modified).toLocaleDateString()}</span><MoreHorizontal/></button>)}{items.length===0&&<div className="empty">{t.empty}</div>}</div></>:page==='settings'?<><div className="welcome"><div><div className="eyebrow">PREFERENCES</div><h1>{t.settings}</h1><p>Customize Pocket Files for your device.</p></div></div><div className="settings-card"><h2>Appearance</h2><p>Color theme</p><div className="choices">{['system','light','dark','oled'].map(x=><button className={theme===x?'choice selected':'choice'} onClick={()=>setTheme(x)}>{x}</button>)}</div><h2>Language</h2><div className="choices">{[['en','English'],['zh','简体中文'],['ja','日本語']].map(([x,n])=><button className={lang===x?'choice selected':'choice'} onClick={()=>setLang(x)}>{n}</button>)}</div></div></>:<><div className="welcome"><div><div className="eyebrow">POCKET FILES</div><h1>{t[page]||page}</h1><p>{page==='transfers'?'No transfers in progress':page==='favorites'?'Your pinned files and folders':'Files you opened recently'}</p></div></div><div className="empty-panel">{page==='transfers'?<ArrowLeftRight/>:page==='favorites'?<Star/>:<Clock/>}<strong>Nothing here yet</strong><span>Your {page} will appear here.</span></div></>}</div></section></main>
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import {
+  ArrowLeftRight,
+  BarChart3,
+  Clock,
+  Folder,
+  Grid2X2,
+  HardDrive,
+  LayoutGrid,
+  Menu,
+  MoreHorizontal,
+  PanelLeftClose,
+  Search,
+  Settings,
+  Star,
+} from 'lucide-react';
+import './style.css';
+import { api } from './api';
+import { translate, type TFunction } from './i18n';
+import { useDevices } from './pages/OverviewPage';
+import { OverviewPage } from './pages/OverviewPage';
+import { FilesPage } from './pages/FilesPage';
+import { StoragePage } from './pages/StoragePage';
+import { TransfersPage } from './pages/TransfersPage';
+import { SearchPage } from './pages/SearchPage';
+import { FavoritesPage } from './pages/FavoritesPage';
+import { RecentsPage } from './pages/RecentsPage';
+import { LibrariesPage } from './pages/LibrariesPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { usePreferences } from './hooks/usePreferences';
+import { useKeyboardNav } from './hooks/useKeyboardNav';
+import type { LibraryKey, PageId } from './types';
+
+interface NavTarget {
+  page: PageId;
+  storageId: string;
+  path: string;
+  library: LibraryKey;
+  query: string;
 }
-createRoot(document.getElementById('root')!).render(<App/>);
+
+const INITIAL_NAV: NavTarget = {
+  page: 'overview',
+  storageId: 'internal',
+  path: '',
+  library: 'books',
+  query: '',
+};
+
+const LIBRARY_LABEL: Record<LibraryKey, 'librariesBooks' | 'librariesMusic' | 'librariesVideos' | 'librariesGames' | 'librariesDownloads'> = {
+  books: 'librariesBooks',
+  music: 'librariesMusic',
+  videos: 'librariesVideos',
+  games: 'librariesGames',
+  downloads: 'librariesDownloads',
+};
+
+function App() {
+  const prefs = usePreferences();
+  const t = useCallback<TFunction>((key, params) => translate(prefs.lang, key, params), [prefs.lang]);
+
+  const [nav, setNav] = useState<NavTarget>(INITIAL_NAV);
+  const [query, setQuery] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [health, setHealth] = useState<string | null>(null);
+
+  const devices = useDevices();
+  const list = devices.data ?? [];
+  const currentDevice = list.find((device) => device.id === nav.storageId);
+
+  useEffect(() => {
+    api
+      .health()
+      .then((res) => setHealth(res.mode))
+      .catch(() => setHealth(null));
+  }, []);
+
+  const navigate = useCallback((patch: Partial<NavTarget>) => {
+    setNav((current) => ({ ...current, ...patch }));
+    setSidebarOpen(false);
+  }, []);
+
+  const goFiles = useCallback(
+    (storageId: string, path: string) => navigate({ page: 'files', storageId, path }),
+    [navigate],
+  );
+
+  const goStorage = useCallback(
+    (storageId: string) => navigate({ page: 'storage', storageId, path: '' }),
+    [navigate],
+  );
+
+  const openLibrary = useCallback(
+    (library: LibraryKey) => navigate({ page: 'libraries', library }),
+    [navigate],
+  );
+
+  // Escape = "back": folder up inside Files, otherwise overview.
+  const handleBack = useCallback(() => {
+    if (nav.page === 'files' && nav.path !== '') {
+      const trimmed = nav.path.replace(/\/+$/, '');
+      const idx = trimmed.lastIndexOf('/');
+      navigate({ path: idx <= 0 ? '' : trimmed.slice(0, idx) });
+      return;
+    }
+    if (nav.page !== 'overview') navigate({ page: 'overview' });
+  }, [nav.page, nav.path, navigate]);
+
+  useKeyboardNav({ onBack: handleBack });
+
+  // Cmd/Ctrl+K focuses the global search field.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        document.querySelector<HTMLInputElement>('.search input')?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  const submitSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    navigate({ page: 'search', query: query.trim() });
+  };
+
+  const storageNav = useMemo(
+    () =>
+      list.map((device) => ({
+        id: device.id,
+        name: device.name,
+        mock: device.mock,
+      })),
+    [list],
+  );
+
+  const navItems: Array<{ id: PageId; label: string; icon: typeof Folder }> = [
+    { id: 'overview', label: t('navOverview'), icon: LayoutGrid },
+    { id: 'files', label: t('navFiles'), icon: Folder },
+    { id: 'transfers', label: t('navTransfers'), icon: ArrowLeftRight },
+    { id: 'favorites', label: t('navFavorites'), icon: Star },
+    { id: 'recents', label: t('navRecents'), icon: Clock },
+    { id: 'libraries', label: t('navLibraries'), icon: Grid2X2 },
+    { id: 'analytics', label: t('navAnalytics'), icon: BarChart3 },
+    { id: 'settings', label: t('navSettings'), icon: Settings },
+  ];
+
+  const breadcrumb =
+    nav.page === 'files'
+      ? [currentDevice?.name ?? t('navFiles'), ...(nav.path ? [nav.path] : [])]
+      : [labelFor(nav, t)];
+
+  return (
+    <main className="app" data-nav-scope="app">
+      <aside className={'sidebar' + (sidebarOpen ? ' open' : '')}>
+        <div className="brand">
+          <div className="brand-icon">
+            <Grid2X2 aria-hidden />
+          </div>
+          <div>
+            <strong>{t('appName')}</strong>
+            <small>{t('appTagline')}</small>
+          </div>
+          <button
+            type="button"
+            className="ghost collapse"
+            onClick={() => setSidebarOpen((open) => !open)}
+            aria-label={sidebarOpen ? t('sidebarCollapse') : t('sidebarExpand')}
+            data-nav
+          >
+            <PanelLeftClose aria-hidden />
+          </button>
+        </div>
+
+        <div className="nav-label">{t('navStorage')}</div>
+        {storageNav.map((device) => (
+          <button
+            type="button"
+            key={device.id}
+            className={'nav-item' + (nav.page === 'files' || nav.page === 'storage' ? '' : '') + (nav.storageId === device.id ? ' current' : '')}
+            onClick={() => goFiles(device.id, '')}
+            onDoubleClick={() => goStorage(device.id)}
+            data-nav
+          >
+            <HardDrive aria-hidden />
+            <span>{device.name}</span>
+            {device.mock && <i aria-hidden />}
+          </button>
+        ))}
+        {storageNav.length === 0 && (
+          <button type="button" className="nav-item" onClick={() => navigate({ page: 'files' })} data-nav>
+            <HardDrive aria-hidden />
+            <span>{t('navFiles')}</span>
+          </button>
+        )}
+
+        <div className="nav-label library-label">{t('navLibraries')}</div>
+        {(['books', 'music', 'videos', 'games', 'downloads'] as LibraryKey[]).map((key) => (
+          <button
+            type="button"
+            key={key}
+            className={'nav-item' + (nav.page === 'libraries' && nav.library === key ? ' active' : '')}
+            onClick={() => openLibrary(key)}
+            data-nav
+          >
+            <Folder aria-hidden />
+            <span>{t(LIBRARY_LABEL[key])}</span>
+          </button>
+        ))}
+
+        <div className="nav-label library-label">{t('navOverview')}</div>
+        {navItems.map(({ id, label, icon: Icon }) => (
+          <button
+            type="button"
+            key={id}
+            className={'nav-item' + (nav.page === id ? ' active' : '')}
+            onClick={() => navigate({ page: id })}
+            data-nav
+          >
+            <Icon aria-hidden />
+            <span>{label}</span>
+          </button>
+        ))}
+
+        <div className="sidebar-bottom">
+          <span className="avatar">P</span>
+          <div>
+            <strong>{t('accountName')}</strong>
+            <small>{t('accountProfile')}</small>
+          </div>
+          <MoreHorizontal aria-hidden />
+        </div>
+      </aside>
+
+      <section className="content">
+        <header className="topbar">
+          <div className="crumb">
+            <button
+              type="button"
+              className="ghost menu-toggle"
+              onClick={() => setSidebarOpen((open) => !open)}
+              aria-label={sidebarOpen ? t('sidebarCollapse') : t('sidebarExpand')}
+              data-nav
+            >
+              <Menu aria-hidden />
+            </button>
+            {breadcrumb.map((part, index) => (
+              <span key={`${part}-${index}`} className={index === breadcrumb.length - 1 ? 'crumb-current' : ''}>
+                {index > 0 && <span className="crumb-sep">/</span>}
+                {part}
+              </span>
+            ))}
+          </div>
+          <div className="top-actions">
+            <form className="search" onSubmit={submitSearch}>
+              <Search aria-hidden />
+              <input
+                placeholder={t('commonSearch')}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label={t('commonSearch')}
+                data-nav
+              />
+              <kbd>⌘K</kbd>
+            </form>
+            <button
+              type="button"
+              className="round"
+              onClick={() => prefs.setTheme(prefs.theme === 'oled' ? 'system' : 'oled')}
+              aria-label={t('settingsTheme')}
+              data-nav
+            >
+              ◐
+            </button>
+          </div>
+        </header>
+
+        <div className="page-body">
+          {nav.page === 'overview' && (
+            <OverviewPage
+              t={t}
+              devices={list}
+              devicesLoading={devices.loading}
+              onOpenStorage={goStorage}
+              onOpenLibrary={openLibrary}
+              onBrowseFiles={goFiles}
+            />
+          )}
+          {nav.page === 'files' && (
+            <FilesPage
+              t={t}
+              lang={prefs.lang}
+              storageId={nav.storageId}
+              storageName={currentDevice?.name ?? ''}
+              path={nav.path}
+              onPathChange={(path) => navigate({ path })}
+            />
+          )}
+          {nav.page === 'storage' && (
+            <StoragePage
+              t={t}
+              device={currentDevice}
+              onBrowse={(storageId) => goFiles(storageId, '')}
+            />
+          )}
+          {nav.page === 'transfers' && <TransfersPage t={t} />}
+          {nav.page === 'search' && (
+            <SearchPage
+              t={t}
+              lang={prefs.lang}
+              storageId={nav.storageId}
+              initialQuery={nav.query}
+              onOpen={goFiles}
+            />
+          )}
+          {nav.page === 'favorites' && (
+            <FavoritesPage
+              t={t}
+              onOpen={(storageId, uri) => goFiles(storageId, uri.includes('/') ? uri.slice(0, uri.lastIndexOf('/')) : '')}
+            />
+          )}
+          {nav.page === 'recents' && (
+            <RecentsPage t={t} lang={prefs.lang} onOpen={goFiles} />
+          )}
+          {nav.page === 'libraries' && (
+            <LibrariesPage
+              t={t}
+              lang={prefs.lang}
+              initial={nav.library}
+              onOpenEntry={(storageId, uri) =>
+                goFiles(storageId, uri.includes('/') ? uri.slice(0, uri.lastIndexOf('/')) : '')
+              }
+            />
+          )}
+          {nav.page === 'analytics' && (
+            <AnalyticsPage
+              t={t}
+              storageId={nav.storageId}
+              storageName={currentDevice?.name ?? ''}
+            />
+          )}
+          {nav.page === 'settings' && (
+            <SettingsPage
+              t={t}
+              theme={prefs.theme}
+              onThemeChange={prefs.setTheme}
+              lang={prefs.lang}
+              onLangChange={prefs.setLang}
+              profile={prefs.profile}
+              onProfileChange={prefs.setProfile}
+              resolvedProfile={prefs.resolvedProfile}
+              dpi={prefs.dpi}
+            />
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function labelFor(nav: NavTarget, t: TFunction): string {
+  switch (nav.page) {
+    case 'overview':
+      return t('navOverview');
+    case 'files':
+      return t('navFiles');
+    case 'storage':
+      return t('storageTitle');
+    case 'transfers':
+      return t('transfersTitle');
+    case 'search':
+      return t('searchTitle');
+    case 'favorites':
+      return t('favoritesTitle');
+    case 'recents':
+      return t('recentsTitle');
+    case 'libraries':
+      return t(LIBRARY_LABEL[nav.library]);
+    case 'analytics':
+      return t('analyticsTitle');
+    case 'settings':
+      return t('settingsTitle');
+    default:
+      return t('appName');
+  }
+}
+
+createRoot(document.getElementById('root')!).render(<App />);

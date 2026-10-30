@@ -117,7 +117,7 @@ func newMockProvider() (*MockProvider, error) {
 				return nil, err
 			}
 		}
-		if err = os.WriteFile(filepath.Join(root, "Documents", "Welcome.txt"), []byte("Pocket Files mock storage. This is generated temporary data."), 0600); err != nil {
+		if err = seedMockVolume(root, d.id, len(p.devices)); err != nil {
 			return nil, err
 		}
 		p.devices = append(p.devices, Device{ID: d.id, Name: d.name, Kind: d.kind, Status: "ready", Mock: true, Total: d.total, Root: root})
