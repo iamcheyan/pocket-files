@@ -333,12 +333,17 @@ func TestSearchFilterSort(t *testing.T) {
 		t.Fatalf("expected >=2 items, got %d", len(items))
 	}
 	first, _ := items[0].(map[string]any)
-	second, _ := items[1].(map[string]any)
 	if first["name"] != "large.txt" {
 		t.Fatalf("sort desc wrong: %v", first)
 	}
-	if second["name"] != "small.txt" {
-		t.Fatalf("sort desc order wrong: %v", second)
+	prev := -1.0
+	for _, it := range items {
+		m, _ := it.(map[string]any)
+		sz, _ := m["size"].(float64)
+		if prev >= 0 && sz > prev {
+			t.Fatalf("sort desc not monotonic: %v", items)
+		}
+		prev = sz
 	}
 	// min_size filter
 	code, body = doJSON(t, s, http.MethodGet, "/api/files?storage_id=internal&path=Documents&min_size=1000", nil)
@@ -555,7 +560,7 @@ func TestNoPathLeakAcrossEndpoints(t *testing.T) {
 		mu.Lock()
 		body := w.Body.String()
 		mu.Unlock()
-		if strings.Contains(body, "/tmp/") || strings.Contains(body, p.roots["internal"]) {
+		if strings.Contains(body, "/tmp/") || strings.Contains(body, p.roots["internal"]) || strings.Contains(body, "pocket-files-mock") {
 			t.Errorf("path leak at %s: %s", path, body)
 		}
 		if strings.Contains(body, "\"Root\"") || strings.Contains(body, "\"root\"") {

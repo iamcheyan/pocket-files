@@ -327,27 +327,45 @@ func stableSortEntries(items []Entry, by, order string) []Entry {
 	stable := make([]Entry, len(items))
 	copy(stable, items)
 	sort.SliceStable(stable, func(i, j int) bool {
-		var less bool
+		cmp := 0
 		switch by {
-		case "name":
-			less = stable[i].Name < stable[j].Name
 		case "size":
-			less = stable[i].Size < stable[j].Size
+			cmp = compareInt64(stable[i].Size, stable[j].Size)
 		case "modified":
-			less = stable[i].Modified.Before(stable[j].Modified)
+			cmp = compareTime(stable[i].Modified, stable[j].Modified)
 		case "created":
-			less = stable[i].Created.Before(stable[j].Created)
+			cmp = compareTime(stable[i].Created, stable[j].Created)
 		case "type":
-			less = stable[i].Extension < stable[j].Extension
+			cmp = strings.Compare(stable[i].Extension, stable[j].Extension)
 		default:
-			less = stable[i].Name < stable[j].Name
+			cmp = strings.Compare(stable[i].Name, stable[j].Name)
 		}
 		if desc {
-			return !less
+			return cmp > 0
 		}
-		return less
+		return cmp < 0
 	})
 	return stable
+}
+
+func compareInt64(a, b int64) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	}
+	return 0
+}
+
+func compareTime(a, b time.Time) int {
+	switch {
+	case a.Before(b):
+		return -1
+	case a.After(b):
+		return 1
+	}
+	return 0
 }
 
 // ---- views ----
@@ -377,13 +395,15 @@ func (b *Backend) getView(ctx context.Context, name string) ([]map[string]any, e
 
 func (b *Backend) viewByExts(ctx context.Context, exts map[string]bool) []map[string]any {
 	var out []map[string]any
-	for _, d := range b.p.devices {
-		all, e := b.p.Browse(ctx, d.ID, "")
+	var walk func(id, rel string)
+	walk = func(id, rel string) {
+		items, e := b.p.Browse(ctx, id, rel)
 		if e != nil {
-			continue
+			return
 		}
-		for _, en := range all {
-			if en.Kind != "file" {
+		for _, en := range items {
+			if en.Kind == "directory" {
+				walk(id, en.ID)
 				continue
 			}
 			if exts[strings.ToLower(en.Extension)] {
@@ -391,9 +411,11 @@ func (b *Backend) viewByExts(ctx context.Context, exts map[string]bool) []map[st
 			}
 		}
 	}
+	for _, d := range b.p.devices {
+		walk(d.ID, "")
+	}
 	return out
 }
-
 func (b *Backend) viewPath(ctx context.Context, rel string) []map[string]any {
 	var out []map[string]any
 	for _, d := range b.p.devices {
@@ -553,16 +575,16 @@ func (b *Backend) scanTree(storageID string) ([]Entry, map[string]int, []dirSize
 func categoryOf(ext string) string {
 	ext = strings.ToLower(ext)
 	switch {
-	case bookExts[ext]:
-		return "Books"
+	case ext == "pdf" || ext == "txt" || ext == "doc" || ext == "docx" || ext == "md" || ext == "odt":
+		return "Documents"
 	case musicExts[ext]:
 		return "Music"
 	case videoExts[ext]:
 		return "Videos"
 	case gameExts[ext]:
 		return "Games"
-	case ext == "pdf" || ext == "txt" || ext == "doc" || ext == "docx" || ext == "md" || ext == "odt":
-		return "Documents"
+	case bookExts[ext]:
+		return "Books"
 	}
 	return "Other"
 }

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -21,15 +23,49 @@ func (s *Server) handleOperations(w http.ResponseWriter, r *http.Request, parts 
 		s.handleOperation(w, r)
 		return
 	}
-	if len(parts) == 3 && parts[2] == "bulk" && r.Method == "POST" {
-		s.handleBulkOperation(w, r)
-		return
-	}
-	if len(parts) == 3 && parts[2] == "undo" && r.Method == "POST" {
-		s.handleOperation(w, r)
-		return
+	if len(parts) == 3 {
+		switch parts[2] {
+		case "bulk":
+			if r.Method == "POST" {
+				s.handleBulkOperation(w, r)
+				return
+			}
+		case "copy", "move", "delete", "undo":
+			if r.Method == "POST" {
+				s.handleOperationKind(w, r, parts[2])
+				return
+			}
+		}
 	}
 	s.error(w, 404, "not_found", "endpoint not found")
+}
+
+// handleOperationKind serves the per-action contract paths: the action comes from
+// the route, so clients do not have to repeat it in the request body.
+func (s *Server) handleOperationKind(w http.ResponseWriter, r *http.Request, action string) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		s.error(w, 400, "invalid_json", "invalid request")
+		return
+	}
+	var payload map[string]any
+	if len(bytes.TrimSpace(body)) > 0 {
+		if json.Unmarshal(body, &payload) != nil {
+			s.error(w, 400, "invalid_json", "invalid request")
+			return
+		}
+	}
+	payload["action"] = action
+	r.Body = io.NopCloser(bytes.NewReader(mustJSON(payload)))
+	s.handleOperation(w, r)
+}
+
+func mustJSON(v any) []byte {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return []byte("{}")
+	}
+	return b
 }
 
 func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +79,9 @@ func (s *Server) handleOperation(w http.ResponseWriter, r *http.Request) {
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		s.error(w, 400, "invalid_json", "invalid request")
 		return
+	}
+	if req.Action == "" && strings.HasSuffix(strings.Trim(r.URL.Path, "/"), "/undo") {
+		req.Action = "undo"
 	}
 	req.Action = strings.ToLower(req.Action)
 	switch req.Action {

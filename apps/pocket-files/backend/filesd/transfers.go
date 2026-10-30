@@ -290,6 +290,11 @@ func (tc *transferController) run(j *transferJob, stop chan struct{}) {
 	for i := range j.Items {
 		// pause / cancel gate at item boundary
 		if !tc.gate(j, stop, started) {
+			j.mu.Lock()
+			if j.Cancelled {
+				j.Status = transferCancelled
+			}
+			j.mu.Unlock()
 			return
 		}
 		j.mu.Lock()
@@ -322,6 +327,13 @@ func (tc *transferController) run(j *transferJob, stop chan struct{}) {
 			return
 		}
 		if err != nil {
+			if err == errCancelled || j.Cancelled {
+				j.progress[idx].state = transferCancelled
+				j.progress[idx].err = "cancelled"
+				j.Status = transferCancelled
+				j.mu.Unlock()
+				return
+			}
 			j.progress[idx].state = transferFailed
 			j.progress[idx].err = sanitizeErr(err)
 			j.Status = transferFailed

@@ -4,3 +4,6 @@ dist/
 *.db-journal
 *.test
 /tmp/
+
+# Go build output
+apps/pocket-files/backend/filesd/filesd

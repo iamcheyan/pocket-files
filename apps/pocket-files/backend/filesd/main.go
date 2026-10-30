@@ -152,6 +152,23 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request, parts []str
 		s.json(w, 200, map[string]any{"items": entryItems(items), "page": page, "limit": limit, "total": total})
 		return
 	}
+	// Canonical contract: GET /api/files/{id}/metadata and /api/files/{id}/preview,
+	// where {id} is the URL-escaped "storage:path" file identifier.
+	if len(parts) >= 4 && r.Method == "GET" && (parts[len(parts)-1] == "metadata" || parts[len(parts)-1] == "preview") {
+		action := parts[len(parts)-1]
+		raw := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/files/"), "/"+action)
+		if id, err := url.PathUnescape(raw); err == nil {
+			raw = id
+		}
+		if strings.Contains(raw, ":") {
+			if action == "metadata" {
+				s.handleFileMetadata(w, r, raw)
+			} else {
+				s.handleFilePreview(w, r, raw)
+			}
+			return
+		}
+	}
 	if len(parts) >= 4 && (parts[2] == "metadata" || parts[2] == "preview") && r.Method == "GET" {
 		raw := strings.TrimPrefix(r.URL.Path, "/api/files/"+parts[2]+"/")
 		id, err := url.PathUnescape(raw)
@@ -292,7 +309,10 @@ func openDB(path string) (*sql.DB, error) {
 	if e != nil {
 		return nil, e
 	}
+	db.SetMaxOpenConns(1)
 	queries := []string{
+		`PRAGMA busy_timeout=5000`,
+		`PRAGMA journal_mode=WAL`,
 		`PRAGMA foreign_keys=ON`,
 		`CREATE TABLE IF NOT EXISTS schema_version(version INTEGER NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS storage_devices(id TEXT PRIMARY KEY,friendly_name TEXT NOT NULL,kind TEXT NOT NULL,status TEXT NOT NULL,mock INTEGER NOT NULL DEFAULT 0)`,
