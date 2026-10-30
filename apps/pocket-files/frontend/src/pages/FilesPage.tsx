@@ -441,12 +441,19 @@ export function FilesPage({
                 className={'file-row' + (checked ? ' selected' : '')}
                 role="row"
                 tabIndex={0}
+                aria-selected={checked}
                 data-nav
                 onClick={(event) => {
                   if (event.detail === 2) openEntry(entry);
                 }}
                 onKeyDown={(event) => {
+                  // Enter opens; Space toggles selection so the list is fully
+                  // operable from a keyboard or D-pad alone.
                   if (event.key === 'Enter') openEntry(entry);
+                  if (event.key === ' ' || event.key === 'Spacebar') {
+                    event.preventDefault();
+                    toggleSelect(entry.id);
+                  }
                 }}
               >
                 <span className="file-name">
